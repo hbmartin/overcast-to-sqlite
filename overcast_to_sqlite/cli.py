@@ -1,18 +1,19 @@
 #!/usr/bin/env python
-
-import click
+from pathlib import Path
 from time import sleep
 
-from overcast_to_sqlite import overcast
-from overcast_to_sqlite.datastore import Datastore
-from overcast_to_sqlite.feed import fetch_xml_and_extract
-from overcast_to_sqlite.utils import archive_path
+import click
+
+from datastore import Datastore
+from feed import fetch_xml_and_extract
+from utils import _archive_path
+import overcast
 
 
-@click.group(invoke_without_command=True)
+@click.group
 @click.version_option()
-def cli():
-    """Save data from Overcast extended OPML to a SQLite database"""
+def cli() -> None:
+    """Save data from Overcast extended OPML to a SQLite database."""
 
 
 @cli.command()
@@ -23,10 +24,11 @@ def cli():
     default="auth.json",
     help="Path to save auth cookie, defaults to auth.json",
 )
-def auth(auth):
-    """Save authentication credentials to a JSON file"""
+def auth(auth: str) -> None:
+    """Save authentication credentials to a JSON file."""
+    click.echo("Please login to Overcast")
     click.echo(
-        f"Login to Overcast - your password is not stored but an auth cookie will be saved to {auth}"
+        f"Your password is not stored but an auth cookie will be saved to {auth}",
     )
     click.echo()
     email = click.prompt("Email")
@@ -54,18 +56,17 @@ def auth(auth):
 )
 @click.option("-na", "--no-archive", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def save(db_path, auth, load, no_archive, verbose):
-    """Save Overcast info to SQLite database"""
+def save(db_path: str, auth: str, load: str, no_archive: bool, verbose: bool) -> None:
+    """Save Overcast info to SQLite database."""
     db = Datastore(db_path)
     ingested_feed_ids = set()
     if load:
-        with open(load) as f:
-            if verbose:
-                print(f"Loading from file {f.name}")
-            xml = f.read()
+        xml = Path(load).read_text()
     else:
         xml = overcast.fetch_opml(
-            auth, None if no_archive else archive_path(db_path, "overcast"), verbose
+            auth,
+            None if no_archive else _archive_path(db_path, "overcast"),
+            verbose,
         )
 
     for playlist in overcast.extract_playlists_from_opml(xml):
@@ -89,7 +90,8 @@ def save(db_path, auth, load, no_archive, verbose):
 )
 @click.option("-na", "--no-archive", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def extend(db_path, no_archive, verbose):
+def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
+    """Download XML feed and extract all feed and episode tags and attributes."""
     db = Datastore(db_path)
     feeds_to_extend = db.get_feeds_to_extend()
     if verbose:
@@ -100,7 +102,7 @@ def extend(db_path, no_archive, verbose):
         feed, episodes = fetch_xml_and_extract(
             url,
             title,
-            None if no_archive else archive_path(db_path, "feeds"),
+            None if no_archive else _archive_path(db_path, "feeds"),
             verbose,
         )
         if verbose:

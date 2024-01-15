@@ -1,20 +1,22 @@
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Tuple, List, Any, Optional
-import xml.etree.ElementTree as ET
-from datetime import datetime
+from typing import Any
+from xml.etree import ElementTree
+
 import requests
 
-from overcast_to_sqlite.constants import (
+from constants import (
+    DESCRIPTION,
     ENCLOSURE_URL,
     FEED_XML_URL,
-    XML_URL,
     TITLE,
-    DESCRIPTION,
+    XML_URL,
 )
-from overcast_to_sqlite.utils import _parse_date_or_none
+from exceptions import NoChannelInFeedError
+from utils import _parse_date_or_none
 
 
-def _element_to_dict(element: ET.Element) -> Dict[str, Any]:
+def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
     element_dict = {}
     tag = (
         element.tag.replace("{http://www.itunes.com/dtds/podcast-1.0.dtd}", "itunes:")
@@ -52,11 +54,15 @@ def _element_to_dict(element: ET.Element) -> Dict[str, Any]:
 
 
 def fetch_xml_and_extract(
-    xml_url: str, title: str, archive_dir: Optional[Path], verbose: bool
-) -> Tuple[Dict, List[Dict]]:
+    xml_url: str,
+    title: str,
+    archive_dir: Path | None,
+    verbose: bool,
+) -> tuple[dict, list[dict]]:
+    """Fetch XML feed and extract all feed and episode tags and attributes."""
     response = requests.get(xml_url)
-    now = datetime.now().isoformat()
-    if response.status_code != 200:
+    now = datetime.now(tz=timezone.utc).isoformat()
+    if not response.ok:
         print(f"Failed to fetch podcast feed {xml_url}.\n{response.headers}")
         return {
             XML_URL: xml_url,
@@ -69,11 +75,10 @@ def fetch_xml_and_extract(
         archive_dir.mkdir(parents=True, exist_ok=True)
         if verbose:
             print(f"Saving feed XML to {archive_dir}/{title}.xml")
-        with open(archive_dir / f"{title}.xml", "w") as f:
-            f.write(xml_string)
+        archive_dir.joinpath(f"{title}.xml").write_text(xml_string)
     try:
-        root = ET.fromstring(xml_string)
-    except ET.ParseError:
+        root = ElementTree.fromstring(xml_string)
+    except ElementTree.ParseError:
         print(f"Failed to parse podcast feed {xml_url}.\n{response.headers}")
         return {
             XML_URL: xml_url,
@@ -82,14 +87,16 @@ def fetch_xml_and_extract(
         }, []
 
     if (channel := root.find("./channel")) is None:
-        raise ValueError("Could not find channel element")
+        raise NoChannelInFeedError
 
     return _extract_from_feed_xml(channel, now, xml_url)
 
 
 def _extract_from_feed_xml(
-    channel: ET.Element, now: str, xml_url: str
-) -> Tuple[Dict, List[Dict]]:
+    channel: ElementTree.Element,
+    now: str,
+    xml_url: str,
+) -> tuple[dict, list[dict]]:
     feed_attrs = {XML_URL: xml_url, "lastUpdated": now}
     episodes = []
     for element in channel:

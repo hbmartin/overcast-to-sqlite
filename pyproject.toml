@@ -1,0 +1,4 @@
+[tool.ruff]
+select = ["ALL"]
+ignore = ["D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "E203", "ERA001", "EXE001", "FBT001", "S113", "S314", "S608", "T201", "UP017"]
+target-version = "py311"

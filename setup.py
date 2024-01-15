@@ -28,5 +28,5 @@ setup(
     """,
     install_requires=["sqlite-utils", "requests", "click", "python-dateutil"],
     extras_require={"test": ["pytest", "requests-mock", "types-python-dateutil", "types-requests"]},
-    tests_require=["github-to-sqlite[test]"],
+    tests_require=["overcast-to-sqlite[test]"],
 )

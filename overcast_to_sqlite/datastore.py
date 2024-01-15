@@ -1,31 +1,34 @@
 import datetime
-from typing import Dict, List, Set
+
 from sqlite_utils import Database
 
-from overcast_to_sqlite.constants import (
+from constants import (
     DESCRIPTION,
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
+    FEED_XML_URL,
     FEEDS,
     FEEDS_EXTENDED,
-    FEED_XML_URL,
+    INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
     PLAYLISTS,
-    TITLE,
-    XML_URL,
-    INCLUDE_PODCAST_IDS,
     SMART,
     SORTING,
+    TITLE,
+    XML_URL,
 )
 
 
 class Datastore:
-    def __init__(self, db_path: str):
+    """Object responsible for all database interactions."""
+
+    def __init__(self: "Datastore", db_path: str) -> None:
+        """Instantiate and ensure tables exist with expected columns."""
         self.db = Database(db_path)
         self._prepare_db()
 
-    def _prepare_db(self) -> None:
+    def _prepare_db(self: "Datastore") -> None:
         if FEEDS not in self.db.table_names():
             self.db[FEEDS].create(
                 {
@@ -49,7 +52,8 @@ class Datastore:
                 # not_null={"xmlUrl"},
             )
             self.db[FEEDS_EXTENDED].enable_fts(
-                [TITLE, DESCRIPTION], create_triggers=True
+                [TITLE, DESCRIPTION],
+                create_triggers=True,
             )
         if EPISODES not in self.db.table_names():
             self.db[EPISODES].create(
@@ -87,7 +91,8 @@ class Datastore:
                 # not_null={"enclosureUrl"},
             )
             self.db[EPISODES_EXTENDED].enable_fts(
-                ["title", "description"], create_triggers=True
+                ["title", "description"],
+                create_triggers=True,
             )
         if PLAYLISTS not in self.db.table_names():
             self.db[PLAYLISTS].create(
@@ -101,40 +106,59 @@ class Datastore:
                 # not_null={"enclosureUrl"},
             )
 
-    def save_feed_and_episodes(self, feed: Dict, episodes: List[Dict]) -> None:
+    def save_feed_and_episodes(
+        self: "Datastore",
+        feed: dict,
+        episodes: list[dict],
+    ) -> None:
+        """Upsert feed and episodes into database."""
         self.db[FEEDS].upsert(feed, pk=OVERCAST_ID)
         self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
 
-    def save_extended_feed_and_episodes(self, feed: Dict, episodes: List[Dict]) -> None:
+    def save_extended_feed_and_episodes(
+        self: "Datastore",
+        feed: dict,
+        episodes: list[dict],
+    ) -> None:
+        """Upsert feed info (with new columns) and insert episodes (ignore existing)."""
         self.db[FEEDS_EXTENDED].upsert(feed, pk=XML_URL, alter=True)
         self.db[EPISODES_EXTENDED].insert_all(
-            episodes, pk=ENCLOSURE_URL, ignore=True, alter=True
+            episodes,
+            pk=ENCLOSURE_URL,
+            ignore=True,
+            alter=True,
         )
 
-    def mark_feed_removed_if_missing(self, ingested_feed_ids: Set[int]) -> None:
+    def mark_feed_removed_if_missing(
+        self: "Datastore",
+        ingested_feed_ids: set[int],
+    ) -> None:
+        """Set feeds as removed at now if they are not in the ingested feed ids."""
         stored_feed_ids = self.db.execute(
-            f"SELECT {OVERCAST_ID} FROM {FEEDS} WHERE dateRemoveDetected IS null"
+            f"SELECT {OVERCAST_ID} FROM {FEEDS} WHERE dateRemoveDetected IS null",
         ).fetchall()
-        stored_feed_ids = set([x[0] for x in stored_feed_ids])
+        stored_feed_ids = {x[0] for x in stored_feed_ids}
         deleted_ids = stored_feed_ids - ingested_feed_ids
 
-        now = datetime.datetime.now().isoformat()
+        now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         for feed_id in deleted_ids:
             self.db[FEEDS].update(feed_id, {"dateRemoveDetected": now})
 
-    def get_feeds_to_extend(self) -> List[str]:
-        """Find feeds with episodes not represented in episodes_extended"""
-        feeds_to_extend = self.db.execute(
+    def get_feeds_to_extend(self: "Datastore") -> list[str]:
+        """Find feeds with episodes not represented in episodes_extended."""
+        return self.db.execute(
             "SELECT feeds.title, feeds.xmlUrl "
             "FROM episodes "
-            "LEFT JOIN episodes_extended ON episodes.enclosureUrl = episodes_extended.enclosureUrl "
+            "LEFT JOIN episodes_extended "
+            "ON episodes.enclosureUrl = episodes_extended.enclosureUrl "
             "LEFT JOIN feeds ON episodes.feedId = feeds.overcastId "
             "LEFT JOIN feeds_extended ON feeds.xmlUrl = feeds_extended.xmlUrl "
             "WHERE episodes_extended.enclosureUrl IS NULL "
-            "AND (feeds_extended.lastUpdated IS NULL OR feeds_extended.lastUpdated < episodes.pubDate) "
-            "GROUP BY feedId;"
+            "AND (feeds_extended.lastUpdated IS NULL "
+            "OR feeds_extended.lastUpdated < episodes.pubDate) "
+            "GROUP BY feedId;",
         ).fetchall()
-        return feeds_to_extend
 
-    def save_playlist(self, playlist):
+    def save_playlist(self: "Datastore", playlist: dict) -> None:
+        """Upsert playlist into database."""
         self.db[PLAYLISTS].upsert(playlist, pk=TITLE)
