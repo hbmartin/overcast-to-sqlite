@@ -25,7 +25,7 @@ class Datastore:
 
     def __init__(self: "Datastore", db_path: str) -> None:
         """Instantiate and ensure tables exist with expected columns."""
-        self.db = Database(db_path)
+        self.db: Database = Database(db_path)
         self._prepare_db()
 
     def _prepare_db(self: "Datastore") -> None:
