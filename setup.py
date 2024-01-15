@@ -27,6 +27,8 @@ setup(
         overcast-to-sqlite=overcast_to_sqlite.cli:cli
     """,
     install_requires=["sqlite-utils", "requests", "click", "python-dateutil"],
-    extras_require={"test": ["pytest", "requests-mock", "types-python-dateutil", "types-requests"]},
+    extras_require={
+        "test": ["pytest", "requests-mock", "types-python-dateutil", "types-requests"]
+    },
     tests_require=["overcast-to-sqlite[test]"],
 )
