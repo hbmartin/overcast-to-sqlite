@@ -17,3 +17,6 @@ jobs:
         cache-dependency-path: setup.py
     - run: pip install ruff
     - run: ruff check .
+    - uses: psf/black@stable
+      with:
+        options: "--check --verbose"

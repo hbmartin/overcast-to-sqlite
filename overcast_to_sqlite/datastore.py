@@ -1,7 +1,5 @@
 import datetime
 
-from sqlite_utils import Database
-
 from constants import (
     DESCRIPTION,
     ENCLOSURE_URL,
@@ -18,6 +16,7 @@ from constants import (
     TITLE,
     XML_URL,
 )
+from sqlite_utils import Database
 
 
 class Datastore:

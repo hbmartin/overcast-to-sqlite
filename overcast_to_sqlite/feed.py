@@ -4,7 +4,6 @@ from typing import Any
 from xml.etree import ElementTree
 
 import requests
-
 from constants import (
     DESCRIPTION,
     ENCLOSURE_URL,

@@ -3,11 +3,10 @@ from pathlib import Path
 from time import sleep
 
 import click
-
+import overcast
 from datastore import Datastore
 from feed import fetch_xml_and_extract
 from utils import _archive_path
-import overcast
 
 
 @click.group

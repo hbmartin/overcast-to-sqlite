@@ -4,15 +4,11 @@
 [![Tests](https://github.com/dogsheep/github-to-sqlite/workflows/Test/badge.svg)](https://github.com/dogsheep/github-to-sqlite/actions?query=workflow%3ATest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/hbmartin/overcast-to-sqlite/blob/main/LICENSE)
 
-Save data from GitHub to a SQLite database.
-
-<!-- toc -->
+Save data from Overcast to a SQLite database.
 
 - [How to install](#how-to-install)
 - [Authentication](#authentication)
 - [Fetching issues for a repository](#fetching-issues-for-a-repository)
-
-<!-- tocstop -->
 
 ## How to install
 

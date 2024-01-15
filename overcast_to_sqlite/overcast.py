@@ -5,8 +5,6 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 
-from requests import Session
-
 from constants import (
     INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
@@ -19,6 +17,7 @@ from exceptions import (
     OpmlFetchError,
     WrongPasswordError,
 )
+from requests import Session
 from utils import _parse_date_or_none
 
 
