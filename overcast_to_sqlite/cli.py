@@ -3,10 +3,16 @@ from pathlib import Path
 from time import sleep
 
 import click
-import overcast
-from datastore import Datastore
-from feed import fetch_xml_and_extract
-from utils import _archive_path
+
+from .datastore import Datastore
+from .feed import fetch_xml_and_extract
+from .overcast import (
+    auth_and_save_cookies,
+    extract_feed_and_episodes_from_opml,
+    extract_playlists_from_opml,
+    fetch_opml,
+)
+from .utils import _archive_path
 
 
 @click.group
@@ -32,7 +38,7 @@ def auth(auth: str) -> None:
     click.echo()
     email = click.prompt("Email")
     password = click.prompt("Password")
-    overcast.auth_and_save_cookies(email, password, auth)
+    auth_and_save_cookies(email, password, auth)
 
 
 @cli.command()
@@ -62,17 +68,17 @@ def save(db_path: str, auth: str, load: str, no_archive: bool, verbose: bool) ->
     if load:
         xml = Path(load).read_text()
     else:
-        xml = overcast.fetch_opml(
+        xml = fetch_opml(
             auth,
             None if no_archive else _archive_path(db_path, "overcast"),
             verbose,
         )
 
-    for playlist in overcast.extract_playlists_from_opml(xml):
+    for playlist in extract_playlists_from_opml(xml):
         if verbose:
             print(f"Extracting playlist: {playlist['title']}")
         db.save_playlist(playlist)
-    for feed, episodes in overcast.extract_feed_and_episodes_from_opml(xml):
+    for feed, episodes in extract_feed_and_episodes_from_opml(xml):
         if verbose:
             print(f"Extracting {feed['title']} with {len(episodes)} episodes")
         ingested_feed_ids.add(feed["overcastId"])

@@ -1,6 +1,8 @@
 import datetime
 
-from constants import (
+from sqlite_utils import Database
+
+from .constants import (
     DESCRIPTION,
     ENCLOSURE_URL,
     EPISODES,
@@ -16,18 +18,17 @@ from constants import (
     TITLE,
     XML_URL,
 )
-from sqlite_utils import Database
 
 
 class Datastore:
     """Object responsible for all database interactions."""
 
-    def __init__(self: "Datastore", db_path: str) -> None:
+    def __init__(self, db_path: str) -> None:
         """Instantiate and ensure tables exist with expected columns."""
         self.db: Database = Database(db_path)
         self._prepare_db()
 
-    def _prepare_db(self: "Datastore") -> None:
+    def _prepare_db(self) -> None:
         if FEEDS not in self.db.table_names():
             self.db[FEEDS].create(
                 {
@@ -106,7 +107,7 @@ class Datastore:
             )
 
     def save_feed_and_episodes(
-        self: "Datastore",
+        self,
         feed: dict,
         episodes: list[dict],
     ) -> None:
@@ -115,7 +116,7 @@ class Datastore:
         self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
 
     def save_extended_feed_and_episodes(
-        self: "Datastore",
+        self,
         feed: dict,
         episodes: list[dict],
     ) -> None:
@@ -129,7 +130,7 @@ class Datastore:
         )
 
     def mark_feed_removed_if_missing(
-        self: "Datastore",
+        self,
         ingested_feed_ids: set[int],
     ) -> None:
         """Set feeds as removed at now if they are not in the ingested feed ids."""
@@ -143,7 +144,7 @@ class Datastore:
         for feed_id in deleted_ids:
             self.db[FEEDS].update(feed_id, {"dateRemoveDetected": now})
 
-    def get_feeds_to_extend(self: "Datastore") -> list[str]:
+    def get_feeds_to_extend(self) -> list[str]:
         """Find feeds with episodes not represented in episodes_extended."""
         return self.db.execute(
             "SELECT feeds.title, feeds.xmlUrl "
@@ -158,6 +159,6 @@ class Datastore:
             "GROUP BY feedId;",
         ).fetchall()
 
-    def save_playlist(self: "Datastore", playlist: dict) -> None:
+    def save_playlist(self, playlist: dict) -> None:
         """Upsert playlist into database."""
         self.db[PLAYLISTS].upsert(playlist, pk=TITLE)

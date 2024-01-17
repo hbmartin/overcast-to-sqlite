@@ -11,7 +11,7 @@ class NoChannelInFeedError(Exception):
 
 
 class OpmlFetchError(Exception):
-    def __init__(self: "OpmlFetchError", headers: dict) -> None:
+    def __init__(self, headers: dict) -> None:
         self.headers = headers
         super().__init__("Failed to fetch OPML from Overcast")
 

@@ -5,20 +5,21 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 
-from constants import (
+from requests import Session
+
+from .constants import (
     INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
     SMART,
     SORTING,
     TITLE,
 )
-from exceptions import (
+from .exceptions import (
     AuthFailedError,
     OpmlFetchError,
     WrongPasswordError,
 )
-from requests import Session
-from utils import _parse_date_or_none
+from .utils import _parse_date_or_none
 
 
 def auth_and_save_cookies(email: str, password: str, auth_json: str) -> None:
@@ -64,7 +65,7 @@ def fetch_opml(auth_json_path: str, archive_dir: Path | None, verbose: bool) -> 
         timeout=None,
     )
     if not response.ok:
-        raise OpmlFetchError(response.headers)
+        raise OpmlFetchError(dict(response.headers))
     response_text = response.text
     if archive_dir:
         archive_dir.mkdir(parents=True, exist_ok=True)

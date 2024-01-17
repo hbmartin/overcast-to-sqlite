@@ -16,19 +16,15 @@ Save data from Overcast to a SQLite database.
 
 ## Authentication
 
-Create a GitHub personal access token: https://github.com/settings/tokens
+Run this command to login to Overcast (note: neither your password nor email are saved, only the auth cookie):
 
-Run this command and paste in your new token:
-
-    $ github-to-sqlite auth
+    $ overcast-to-sqlite auth
 
 This will create a file called `auth.json` in your current directory containing the required value. To save the file at a different path or filename, use the `--auth=myauth.json` option.
 
-As an alternative to using an `auth.json` file you can add your access token to an environment variable called `GITHUB_TOKEN`.
-
 ## Fetching issues for a repository
 
-The `issues` command retrieves all of the issues belonging to a specified repository.
+The `issues` command retrieves all the issues belonging to a specified repository.
 
     $ github-to-sqlite issues github.db simonw/datasette
 
@@ -41,6 +37,4 @@ You can point to a different location of `auth.json` using `-a`:
 You can use the `--issue` option one or more times to load specific issues:
 
     $ github-to-sqlite issues github.db simonw/datasette --issue=1
-
-Example: [issues table](https://github-to-sqlite.dogsheep.net/github/issues)
 
