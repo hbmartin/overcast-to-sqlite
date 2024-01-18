@@ -62,7 +62,11 @@ def auth(auth: str) -> None:
 @click.option("-na", "--no-archive", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
 def save(
-    db_path: str, auth: str, load: str | None, no_archive: bool, verbose: bool
+    db_path: str,
+    auth: str,
+    load: str | None,
+    no_archive: bool,
+    verbose: bool,
 ) -> None:
     """Save Overcast info to SQLite database."""
     db = Datastore(db_path)
