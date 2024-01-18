@@ -37,13 +37,13 @@ setup(
     packages=["overcast_to_sqlite"],
     keywords=["overcast", "sqlite", "datasette"],
     entry_points={
-        'console_scripts': ['overcast-to-sqlite=overcast_to_sqlite.cli:cli'],
+        "console_scripts": ["overcast-to-sqlite=overcast_to_sqlite.cli:cli"],
     },
     install_requires=["sqlite-utils", "requests", "click", "python-dateutil"],
     extras_require={
         "test": ["pytest", "requests-mock"],
-        "lint": ["ruff", "pyroma", "pytype", "types-python-dateutil", "types-requests"]
+        "lint": ["ruff", "pyroma", "pytype", "types-python-dateutil", "types-requests"],
     },
     tests_require=["overcast-to-sqlite[test]"],
-    python_requires='>=3.10',
+    python_requires=">=3.10",
 )
