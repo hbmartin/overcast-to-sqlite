@@ -21,9 +21,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
-    - name: Install dependencies and create dist
+    - name: Install build and create dist
       run: |
-        pip install -e .
         pip install build
         python3 -m build
     - name: Publish package distributions to PyPI
