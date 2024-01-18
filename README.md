@@ -6,7 +6,7 @@
 [![Code style: black](https://img.shields.io/badge/🐧️-black-000000.svg)](https://github.com/psf/black)
 [![Checked with pytype](https://img.shields.io/badge/🦆-pytype-437f30.svg)](https://google.github.io/pytype/)
 [![Versions](https://img.shields.io/pypi/pyversions/overcast-to-sqlite.svg)](https://pypi.python.org/pypi/overcast-to-sqlite)
-[![discord](https://img.shields.io/discord/823971286308356157?logo=discord&label=)](https://discord.gg/EE7Hx4Kbny)
+[![discord](https://img.shields.io/discord/823971286308356157?logo=discord&label=&color=323338)](https://discord.gg/EE7Hx4Kbny)
 [![twitter](https://img.shields.io/badge/@hmartin-00aced.svg?logo=twitter&logoColor=black)](https://twitter.com/hmartin)
 
 Save data from Overcast to a SQLite database.
