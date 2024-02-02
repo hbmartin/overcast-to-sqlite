@@ -9,12 +9,12 @@
 [![discord](https://img.shields.io/discord/823971286308356157?logo=discord&label=&color=323338)](https://discord.gg/EE7Hx4Kbny)
 [![twitter](https://img.shields.io/badge/@hmartin-00aced.svg?logo=twitter&logoColor=black)](https://twitter.com/hmartin)
 
-Save data from Overcast to a SQLite database.
+Save data from Overcast to a SQLite database. Try exploring your podcast listening habits with [Datasette](https://datasette.io/)!
 
 - [How to install](#how-to-install)
 - [Authentication](#authentication)
 - [Fetching and saving updates](#fetching-and-saving-updates)
-- [Fetching and saving updates](#fetching-and-saving-updates)
+- [Extending and saving full feeds](#extending-and-saving-full-feeds)
 
 ## How to install
 
