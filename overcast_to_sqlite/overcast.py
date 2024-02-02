@@ -121,7 +121,7 @@ def extract_feed_and_episodes_from_opml(
             ep_attrs["userDeleted"] = ep_attrs.get("userDeleted", False) == "1"
             ep_attrs["progress"] = (
                 None
-                if (progress := ep_attrs.get("progress", None)) is None
+                if (progress := ep_attrs.get("progress")) is None
                 else int(progress)
             )
             ep_attrs["userUpdatedDate"] = _iso_date_or_none(ep_attrs, "userUpdatedDate")
