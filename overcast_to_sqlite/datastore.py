@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Iterable
+from collections.abc import Iterable
 
 from sqlite_utils import Database
 
@@ -10,9 +10,9 @@ from .constants import (
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
+    FEED_XML_URL,
     FEEDS,
     FEEDS_EXTENDED,
-    FEED_XML_URL,
     INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
     PLAYLISTS,
@@ -181,39 +181,55 @@ class Datastore:
             self.db[EPISODES_EXTENDED].add_column(ENCLOSURE_DL_PATH, str)
 
     def transcripts_to_download(
-        self, starred_only: bool
+        self,
+        starred_only: bool,
     ) -> Iterable[tuple[str, str, str, str, str]]:
+        """Find episodes with transcripts to download.
+
+        Yields (title, url, mime_type, enclosure_url, feed_title)
+        """
         try:
             self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
         except sqlite3.OperationalError:
-            raise NoTranscriptsUrlError
+            raise NoTranscriptsUrlError from None
         try:
             self.db.execute(
-                f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1"
+                f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1",
             )
         except sqlite3.OperationalError:
             self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+        select = (
+            f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, "
+            f"{TRANSCRIPT_TYPE}, {EPISODES_EXTENDED}.{ENCLOSURE_URL}, "
+            f"{FEEDS_EXTENDED}.{TITLE} FROM {EPISODES_EXTENDED} "
+        )
+        where = f"WHERE {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
         query = (
-            f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, {TRANSCRIPT_TYPE}, "
-            + f"{EPISODES_EXTENDED}.{ENCLOSURE_URL}, {FEEDS_EXTENDED}.{TITLE} "
-            + f"FROM {EPISODES_EXTENDED} "
-            + f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
-            + f"WHERE {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
+            (
+                f"{select} LEFT JOIN {FEEDS_EXTENDED} "
+                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"{where}"
+            )
             if not starred_only
-            else f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, {TRANSCRIPT_TYPE}, "
-            + f"{EPISODES_EXTENDED}.{ENCLOSURE_URL}, {FEEDS_EXTENDED}.{TITLE} "
-            + f"FROM {EPISODES_EXTENDED} "
-            + f"LEFT JOIN {EPISODES} ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {EPISODES}.{ENCLOSURE_URL} "
-            + f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
-            + f"WHERE {USER_REC_DATE} IS NOT NULL AND {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
+            else (
+                f"{select} "
+                f"LEFT JOIN {EPISODES} "
+                f"ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {EPISODES}.{ENCLOSURE_URL} "
+                f"LEFT JOIN {FEEDS_EXTENDED} "
+                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"{where} AND {USER_REC_DATE} IS NOT NULL"
+            )
         )
 
-        for title, url, trans_type, enclosureUrl, feed_title in self.db.execute(query):
-            yield title, url, trans_type, enclosureUrl, feed_title
+        yield from self.db.execute(query)
 
     def update_transcript_download_paths(
-        self, enclosure: str, transcript_path: str
+        self,
+        enclosure: str,
+        transcript_path: str,
     ) -> None:
+        """Update episode with transcript download path."""
         self.db[EPISODES_EXTENDED].update(
-            enclosure, {TRANSCRIPT_DL_PATH: transcript_path}
+            enclosure,
+            {TRANSCRIPT_DL_PATH: transcript_path},
         )

@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-import mimetypes
+
+from mimetypes import guess_extension
 from pathlib import Path
-from time import sleep
 
 import click
 import requests
 
-from overcast_to_sqlite.constants import ENCLOSURE_URL, TRANSCRIPT_DL_PATH
 from overcast_to_sqlite.exceptions import NoTranscriptsUrlError
+
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
@@ -126,13 +126,9 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
         )
         if verbose:
             print(f"Extracting {title} with {len(episodes)} episodes")
-            print(feed)
         if "errorCode" in feed:
             print(f"⛔️ Found error: {feed['errorCode']}")
         db.save_extended_feed_and_episodes(feed, episodes)
-        if verbose:
-            print("...")
-        sleep(3)
 
 
 @cli.command()
@@ -169,28 +165,31 @@ def transcripts(
 
     try:
         for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
-            starred_only
+            starred_only,
         ):
             if verbose:
                 print(f"Downloading {title} from {url}")
             response = requests.get(url)
             if not response.ok:
-                print(f"⛔ Error downloading {title} from {url}: {response.status_code}")
+                print(f"⛔ Error downloading {title} @ {url}: {response.status_code}")
                 continue
             content_type = (response.headers["content-type"] or mimetype).split(";")[0]
-            file_ext = mimetypes.guess_extension(content_type) or (
+            file_ext = guess_extension(content_type) or (
                 "." + content_type.split("/")[-1]
             )
             feed_path = transcripts_path / _sanitize_for_path(feed_title)
             if not feed_path.exists():
                 feed_path.mkdir(parents=True)
             file_path = feed_path / (_sanitize_for_path(title) + file_ext)
-            with open(file_path, mode="wb") as file:
+            with file_path.open(mode="wb") as file:
                 file.write(response.content)
-                db.update_transcript_download_paths(enclosure, str(file_path.absolute()))
+                db.update_transcript_download_paths(
+                    enclosure,
+                    str(file_path.absolute()),
+                )
     except NoTranscriptsUrlError:
         print("🤔 No transcript URLs found in database, running extend command")
-        extend(db_path, False, verbose)
+        extend(db_path, no_archive=False, verbose=verbose)
         print("🔁 Please re-run the download command")
 
 
