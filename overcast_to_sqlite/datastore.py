@@ -1,23 +1,31 @@
 import datetime
+import sqlite3
+from typing import Iterable
 
 from sqlite_utils import Database
 
 from .constants import (
     DESCRIPTION,
+    ENCLOSURE_DL_PATH,
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
-    FEED_XML_URL,
     FEEDS,
     FEEDS_EXTENDED,
+    FEED_XML_URL,
     INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
     PLAYLISTS,
     SMART,
     SORTING,
     TITLE,
+    TRANSCRIPT_DL_PATH,
+    TRANSCRIPT_TYPE,
+    TRANSCRIPT_URL,
+    USER_REC_DATE,
     XML_URL,
 )
+from .exceptions import NoTranscriptsUrlError
 
 
 class Datastore:
@@ -67,7 +75,7 @@ class Datastore:
                     "progress": int,
                     ENCLOSURE_URL: str,
                     "userUpdatedDate": datetime.datetime,
-                    "userRecommendedDate": datetime.datetime,
+                    USER_REC_DATE: datetime.datetime,
                     "pubDate": datetime.datetime,
                     "userDeleted": bool,
                 },
@@ -162,3 +170,50 @@ class Datastore:
     def save_playlist(self, playlist: dict) -> None:
         """Upsert playlist into database."""
         self.db[PLAYLISTS].upsert(playlist, pk=TITLE)
+
+    def ensure_download_columns(self) -> None:
+        """Ensure download columns exist in episodes_extended."""
+        try:
+            self.db.execute(f"SELECT {ENCLOSURE_DL_PATH} FROM {EPISODES_EXTENDED};")
+        except sqlite3.OperationalError as err:
+            print(err)
+            print(vars(err))
+            self.db[EPISODES_EXTENDED].add_column(ENCLOSURE_DL_PATH, str)
+
+    def transcripts_to_download(
+        self, starred_only: bool
+    ) -> Iterable[tuple[str, str, str, str, str]]:
+        try:
+            self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
+        except sqlite3.OperationalError:
+            raise NoTranscriptsUrlError
+        try:
+            self.db.execute(
+                f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1"
+            )
+        except sqlite3.OperationalError:
+            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+        query = (
+            f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, {TRANSCRIPT_TYPE}, "
+            + f"{EPISODES_EXTENDED}.{ENCLOSURE_URL}, {FEEDS_EXTENDED}.{TITLE} "
+            + f"FROM {EPISODES_EXTENDED} "
+            + f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+            + f"WHERE {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
+            if not starred_only
+            else f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, {TRANSCRIPT_TYPE}, "
+            + f"{EPISODES_EXTENDED}.{ENCLOSURE_URL}, {FEEDS_EXTENDED}.{TITLE} "
+            + f"FROM {EPISODES_EXTENDED} "
+            + f"LEFT JOIN {EPISODES} ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {EPISODES}.{ENCLOSURE_URL} "
+            + f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+            + f"WHERE {USER_REC_DATE} IS NOT NULL AND {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
+        )
+
+        for title, url, trans_type, enclosureUrl, feed_title in self.db.execute(query):
+            yield title, url, trans_type, enclosureUrl, feed_title
+
+    def update_transcript_download_paths(
+        self, enclosure: str, transcript_path: str
+    ) -> None:
+        self.db[EPISODES_EXTENDED].update(
+            enclosure, {TRANSCRIPT_DL_PATH: transcript_path}
+        )

@@ -13,6 +13,7 @@ from .constants import (
     SMART,
     SORTING,
     TITLE,
+    USER_REC_DATE,
 )
 from .exceptions import (
     AuthFailedError,
@@ -125,9 +126,9 @@ def extract_feed_and_episodes_from_opml(
                 else int(progress)
             )
             ep_attrs["userUpdatedDate"] = _iso_date_or_none(ep_attrs, "userUpdatedDate")
-            ep_attrs["userRecommendedDate"] = _iso_date_or_none(
+            ep_attrs[USER_REC_DATE] = _iso_date_or_none(
                 ep_attrs,
-                "userRecommendedDate",
+                USER_REC_DATE,
             )
             ep_attrs["pubDate"] = _iso_date_or_none(ep_attrs, "pubDate")
             del ep_attrs["type"]

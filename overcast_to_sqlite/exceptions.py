@@ -10,6 +10,10 @@ class NoChannelInFeedError(Exception):
     pass
 
 
+class NoTranscriptsUrlError(Exception):
+    pass
+
+
 class OpmlFetchError(Exception):
     def __init__(self, headers: dict) -> None:
         self.headers = headers

@@ -1,4 +1,5 @@
 DESCRIPTION = "description"
+ENCLOSURE_DL_PATH = "enclosureDownloadPath"
 ENCLOSURE_URL = "enclosureUrl"
 EPISODES = "episodes"
 EPISODES_EXTENDED = "episodes_extended"
@@ -11,4 +12,8 @@ PLAYLISTS = "playlists"
 SMART = "smart"
 SORTING = "sorting"
 TITLE = "title"
+TRANSCRIPT_DL_PATH = "transcriptDownloadPath"
+TRANSCRIPT_TYPE = '"podcast:transcript:type"'
+TRANSCRIPT_URL = '"podcast:transcript:url"'
+USER_REC_DATE = "userRecommendedDate"
 XML_URL = "xmlUrl"

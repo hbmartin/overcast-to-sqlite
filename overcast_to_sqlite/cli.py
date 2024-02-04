@@ -1,9 +1,13 @@
 #!/usr/bin/env python
+import mimetypes
 from pathlib import Path
 from time import sleep
 
 import click
+import requests
 
+from overcast_to_sqlite.constants import ENCLOSURE_URL, TRANSCRIPT_DL_PATH
+from overcast_to_sqlite.exceptions import NoTranscriptsUrlError
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
@@ -12,7 +16,7 @@ from .overcast import (
     extract_playlists_from_opml,
     fetch_opml,
 )
-from .utils import _archive_path
+from .utils import _archive_path, _sanitize_for_path
 
 
 @click.group
@@ -25,20 +29,21 @@ def cli() -> None:
 @click.option(
     "-a",
     "--auth",
+    "auth_path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     default="auth.json",
     help="Path to save auth cookie, defaults to auth.json",
 )
-def auth(auth: str) -> None:
+def auth(auth_path: str) -> None:
     """Save authentication credentials to a JSON file."""
     click.echo("Please login to Overcast")
     click.echo(
-        f"Your password is not stored but an auth cookie will be saved to {auth}",
+        f"Your password is not stored but an auth cookie will be saved to {auth_path}",
     )
     click.echo()
     email = click.prompt("Email")
     password = click.prompt("Password")
-    auth_and_save_cookies(email, password, auth)
+    auth_and_save_cookies(email, password, auth_path)
 
 
 @cli.command()
@@ -50,6 +55,7 @@ def auth(auth: str) -> None:
 @click.option(
     "-a",
     "--auth",
+    "auth_path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
     default="auth.json",
     help="Path to auth.json file",
@@ -63,7 +69,7 @@ def auth(auth: str) -> None:
 @click.option("-v", "--verbose", is_flag=True)
 def save(
     db_path: str,
-    auth: str,
+    auth_path: str,
     load: str | None,
     no_archive: bool,
     verbose: bool,
@@ -74,8 +80,10 @@ def save(
     if load:
         xml = Path(load).read_text()
     else:
+        if not Path(auth_path).exists():
+            auth(auth_path)
         xml = fetch_opml(
-            auth,
+            auth_path,
             None if no_archive else _archive_path(db_path, "overcast"),
             verbose,
         )
@@ -108,7 +116,7 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
     if verbose:
         print(f"Found {len(feeds_to_extend)} feeds to extend")
     for f in feeds_to_extend:
-        title = f[0].replace("/", "").replace(":", "").replace('"', "")
+        title = _sanitize_for_path(f[0])
         url = f[1]
         feed, episodes = fetch_xml_and_extract(
             url,
@@ -120,11 +128,70 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
             print(f"Extracting {title} with {len(episodes)} episodes")
             print(feed)
         if "errorCode" in feed:
-            print(f"Found error: {feed['errorCode']}")
+            print(f"⛔️ Found error: {feed['errorCode']}")
         db.save_extended_feed_and_episodes(feed, episodes)
         if verbose:
             print("...")
         sleep(3)
+
+
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-p",
+    "--path",
+    "archive_path",
+    type=click.Path(file_okay=False, dir_okay=True, allow_dash=False),
+)
+@click.option("-s", "--starred-only", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True)
+def transcripts(
+    db_path: str,
+    archive_path: str,
+    starred_only: bool,
+    verbose: bool,
+) -> None:
+    """Download available transcripts for all or starred episodes."""
+    db = Datastore(db_path)
+
+    transcripts_path = (
+        Path(archive_path) if archive_path else _archive_path(db_path, "transcripts")
+    )
+
+    if not transcripts_path.exists():
+        transcripts_path.mkdir(parents=True)
+        if verbose:
+            print(f"Created {transcripts_path}")
+
+    try:
+        for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
+            starred_only
+        ):
+            if verbose:
+                print(f"Downloading {title} from {url}")
+            response = requests.get(url)
+            if not response.ok:
+                print(f"⛔ Error downloading {title} from {url}: {response.status_code}")
+                continue
+            content_type = (response.headers["content-type"] or mimetype).split(";")[0]
+            file_ext = mimetypes.guess_extension(content_type) or (
+                "." + content_type.split("/")[-1]
+            )
+            feed_path = transcripts_path / _sanitize_for_path(feed_title)
+            if not feed_path.exists():
+                feed_path.mkdir(parents=True)
+            file_path = feed_path / (_sanitize_for_path(title) + file_ext)
+            with open(file_path, mode="wb") as file:
+                file.write(response.content)
+                db.update_transcript_download_paths(enclosure, str(file_path.absolute()))
+    except NoTranscriptsUrlError:
+        print("🤔 No transcript URLs found in database, running extend command")
+        extend(db_path, False, verbose)
+        print("🔁 Please re-run the download command")
 
 
 if __name__ == "__main__":
