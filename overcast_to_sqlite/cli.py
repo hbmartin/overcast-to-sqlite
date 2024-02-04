@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from mimetypes import guess_extension
 from pathlib import Path
 
 import click
@@ -16,13 +15,13 @@ from .overcast import (
     extract_playlists_from_opml,
     fetch_opml,
 )
-from .utils import _archive_path, _sanitize_for_path
+from .utils import _archive_path, _file_extension_for_type, _sanitize_for_path
 
 
 @click.group
 @click.version_option()
 def cli() -> None:
-    """Save data from Overcast extended OPML to a SQLite database."""
+    """Save listening history and feed/episode info from Overcast to SQLite."""
 
 
 @cli.command()
@@ -172,14 +171,14 @@ def transcripts(
             response = requests.get(url)
             if not response.ok:
                 print(f"⛔ Error downloading {title} @ {url}: {response.status_code}")
+                if verbose:
+                    print(response.headers)
+                    print(response.text)
                 continue
-            content_type = (response.headers["content-type"] or mimetype).split(";")[0]
-            file_ext = guess_extension(content_type) or (
-                "." + content_type.split("/")[-1]
-            )
             feed_path = transcripts_path / _sanitize_for_path(feed_title)
             if not feed_path.exists():
                 feed_path.mkdir(parents=True)
+            file_ext = _file_extension_for_type(response.headers, mimetype)
             file_path = feed_path / (_sanitize_for_path(title) + file_ext)
             with file_path.open(mode="wb") as file:
                 file.write(response.content)

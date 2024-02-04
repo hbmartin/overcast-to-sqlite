@@ -14,7 +14,7 @@ def get_long_description():
 
 setup(
     name="overcast-to-sqlite",
-    description="Save data from Overcast extended OPML to a SQLite database",
+    description="Save listening history and feed/episode info from Overcast to a SQLite database.",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Harold Martin",

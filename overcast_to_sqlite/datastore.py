@@ -14,6 +14,7 @@ from .constants import (
     FEEDS,
     FEEDS_EXTENDED,
     INCLUDE_PODCAST_IDS,
+    LAST_UPDATED,
     OVERCAST_ID,
     PLAYLISTS,
     SMART,
@@ -54,7 +55,12 @@ class Datastore:
             )
         if FEEDS_EXTENDED not in self.db.table_names():
             self.db[FEEDS_EXTENDED].create(
-                {XML_URL: str, TITLE: str, DESCRIPTION: str},
+                {
+                    XML_URL: str,
+                    TITLE: str,
+                    DESCRIPTION: str,
+                    LAST_UPDATED: datetime.datetime,
+                },
                 pk=XML_URL,
                 foreign_keys=[(XML_URL, FEEDS, XML_URL)],
                 # not_null={"xmlUrl"},
