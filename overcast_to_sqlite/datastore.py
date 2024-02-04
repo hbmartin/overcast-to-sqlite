@@ -10,6 +10,7 @@ from .constants import (
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
+    FEED_ID,
     FEED_XML_URL,
     FEEDS,
     FEEDS_EXTENDED,
@@ -17,6 +18,7 @@ from .constants import (
     LAST_UPDATED,
     OVERCAST_ID,
     PLAYLISTS,
+    PUB_DATE,
     SMART,
     SORTING,
     TITLE,
@@ -73,7 +75,7 @@ class Datastore:
             self.db[EPISODES].create(
                 {
                     OVERCAST_ID: int,
-                    "feedId": int,
+                    FEED_ID: int,
                     "title": str,
                     "url": str,
                     "overcastUrl": str,
@@ -82,7 +84,7 @@ class Datastore:
                     ENCLOSURE_URL: str,
                     "userUpdatedDate": datetime.datetime,
                     USER_REC_DATE: datetime.datetime,
-                    "pubDate": datetime.datetime,
+                    PUB_DATE: datetime.datetime,
                     "userDeleted": bool,
                 },
                 pk="overcastId",
@@ -161,16 +163,18 @@ class Datastore:
     def get_feeds_to_extend(self) -> list[str]:
         """Find feeds with episodes not represented in episodes_extended."""
         return self.db.execute(
-            "SELECT feeds.title, feeds.xmlUrl "
-            "FROM episodes "
-            "LEFT JOIN episodes_extended "
-            "ON episodes.enclosureUrl = episodes_extended.enclosureUrl "
-            "LEFT JOIN feeds ON episodes.feedId = feeds.overcastId "
-            "LEFT JOIN feeds_extended ON feeds.xmlUrl = feeds_extended.xmlUrl "
-            "WHERE episodes_extended.enclosureUrl IS NULL "
-            "AND (feeds_extended.lastUpdated IS NULL "
-            "OR feeds_extended.lastUpdated < episodes.pubDate) "
-            "GROUP BY feedId;",
+            f"SELECT {FEEDS}.{TITLE}, {FEEDS}.{XML_URL} "
+            f"FROM {EPISODES} "
+            f"LEFT JOIN {EPISODES_EXTENDED} "
+            f"ON {EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+            f"LEFT JOIN {FEEDS} "
+            f"ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+            f"LEFT JOIN {FEEDS_EXTENDED} "
+            f"ON {FEEDS}.{XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+            f"WHERE {EPISODES_EXTENDED}.{ENCLOSURE_URL} IS NULL "
+            f"AND ({FEEDS_EXTENDED}.{LAST_UPDATED} IS NULL "
+            f"OR {FEEDS_EXTENDED}.{LAST_UPDATED} < {EPISODES}.{PUB_DATE}) "
+            f"GROUP BY {FEED_ID};",
         ).fetchall()
 
     def save_playlist(self, playlist: dict) -> None:

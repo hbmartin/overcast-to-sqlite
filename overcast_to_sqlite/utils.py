@@ -24,10 +24,15 @@ def _file_extension_for_type(headers: Mapping, fallback: str) -> str:
     content_type = fallback.split(";")[0]
     try:
         unsafe_content_type: str | None = headers.get("content-type")
-        if unsafe_content_type and unsafe_content_type not in [
-            "application/octet-stream",
-            "binary/octet-stream",
-        ] and not (unsafe_content_type == "text/plain" and fallback != "text/plain"):
+        if (
+            unsafe_content_type
+            and unsafe_content_type
+            not in [
+                "application/octet-stream",
+                "binary/octet-stream",
+            ]
+            and not (unsafe_content_type == "text/plain" and fallback != "text/plain")
+        ):
             content_type = unsafe_content_type.split(";")[0]
     except KeyError:
         pass

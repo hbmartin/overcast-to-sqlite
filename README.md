@@ -74,10 +74,13 @@ Any suggestions for improving on these caveats are welcome, please [open an issu
 ## Downloading transcripts
 
 This also includes a `transcripts` command that will download the transcripts for all extended episodes with transcripts available.
+
 The `save` and `extend` commands MUST be run prior to this command. It will then search the episodes_extended table for episodes with a "podcast:transcript:url" column and attempt to download the transcript from that URL. The file path for the download will then be stored in a "transcriptDownloadPath" column. 
+
 It also supports the `-v` flag to print additional information.
 
     $ overcast-to-sqlite transcripts
 
 Like the save and extend commands, this will attempt to archive transcripts to `archive/transcripts/<feed title>/<episode title>` by default. A different path can be set with the `-p`/`--path` flag.
+
 There is also a `-s` flag to only download transcripts for starred episodes.
