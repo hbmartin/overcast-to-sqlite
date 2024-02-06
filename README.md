@@ -21,6 +21,10 @@ Save listening history and feed/episode info from Overcast to a SQLite database.
 
     $ pip install overcast-to-sqlite
 
+Or to upgrade:
+
+    $ pip install --upgrade overcast-to-sqlite
+
 ## Authentication
 
 Run this command to login to Overcast (note: neither your password nor email are saved, only the auth cookie):

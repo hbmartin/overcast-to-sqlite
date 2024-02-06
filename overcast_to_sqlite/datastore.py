@@ -6,7 +6,6 @@ from sqlite_utils import Database
 
 from .constants import (
     DESCRIPTION,
-    ENCLOSURE_DL_PATH,
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
@@ -18,6 +17,7 @@ from .constants import (
     LAST_UPDATED,
     OVERCAST_ID,
     PLAYLISTS,
+    PROGRESS,
     PUB_DATE,
     SMART,
     SORTING,
@@ -26,6 +26,7 @@ from .constants import (
     TRANSCRIPT_TYPE,
     TRANSCRIPT_URL,
     USER_REC_DATE,
+    USER_UPDATED_DATE,
     XML_URL,
 )
 from .exceptions import NoTranscriptsUrlError
@@ -80,9 +81,9 @@ class Datastore:
                     "url": str,
                     "overcastUrl": str,
                     "played": bool,
-                    "progress": int,
+                    PROGRESS: int,
                     ENCLOSURE_URL: str,
-                    "userUpdatedDate": datetime.datetime,
+                    USER_UPDATED_DATE: datetime.datetime,
                     USER_REC_DATE: datetime.datetime,
                     PUB_DATE: datetime.datetime,
                     "userDeleted": bool,
@@ -121,6 +122,43 @@ class Datastore:
                 pk=TITLE,
                 # not_null={"enclosureUrl"},
             )
+        self.db.create_view(
+            "episodes_played",
+            (
+                "SELECT "
+                f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
+                f"CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred, "
+                f"{USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"FROM {EPISODES} "
+                f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+                f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC"
+            ),
+            ignore=True,
+        )
+        self.db.create_view(
+            "episodes_deleted",
+            (
+                "SELECT "
+                f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
+                f"{USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"FROM {EPISODES} "
+                f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+                f"WHERE userDeleted=1 AND played=0 ORDER BY {USER_UPDATED_DATE} DESC"
+            ),
+            ignore=True,
+        )
+        self.db.create_view(
+            "episodes_starred",
+            (
+                "SELECT "
+                f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
+                f"{USER_REC_DATE}, {USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"FROM {EPISODES} "
+                f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+                f"WHERE {USER_REC_DATE} IS NOT NULL ORDER BY {USER_UPDATED_DATE} DESC"
+            ),
+            ignore=True,
+        )
 
     def save_feed_and_episodes(
         self,
@@ -180,15 +218,6 @@ class Datastore:
     def save_playlist(self, playlist: dict) -> None:
         """Upsert playlist into database."""
         self.db[PLAYLISTS].upsert(playlist, pk=TITLE)
-
-    def ensure_download_columns(self) -> None:
-        """Ensure download columns exist in episodes_extended."""
-        try:
-            self.db.execute(f"SELECT {ENCLOSURE_DL_PATH} FROM {EPISODES_EXTENDED};")
-        except sqlite3.OperationalError as err:
-            print(err)
-            print(vars(err))
-            self.db[EPISODES_EXTENDED].add_column(ENCLOSURE_DL_PATH, str)
 
     def transcripts_to_download(
         self,
