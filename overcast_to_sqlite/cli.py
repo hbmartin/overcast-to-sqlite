@@ -146,7 +146,7 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
 @click.option("-v", "--verbose", is_flag=True)
 def transcripts(
     db_path: str,
-    archive_path: str,
+    archive_path: str | None,
     starred_only: bool,
     verbose: bool,
 ) -> None:
@@ -163,6 +163,7 @@ def transcripts(
             print(f"Created {transcripts_path}")
 
     try:
+        total = 0
         for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
             starred_only,
         ):
@@ -186,10 +187,53 @@ def transcripts(
                     enclosure,
                     str(file_path.absolute()),
                 )
+                total += 0
+        if verbose:
+            print(f"Downloaded {total} transcripts")
     except NoTranscriptsUrlError:
         print("🤔 No transcript URLs found in database, running extend command")
         extend(db_path, no_archive=False, verbose=verbose)
         print("🔁 Please re-run the download command")
+
+
+@cli.command("all")
+@click.pass_context
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-a",
+    "--auth",
+    "auth_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+    default="auth.json",
+    help="Path to auth.json file",
+)
+@click.option("-v", "--verbose", is_flag=True)
+def save_extend_download(
+    ctx: click.core.Context,
+    db_path: str,
+    auth_path: str,
+    verbose: bool,
+) -> None:
+    ctx.invoke(
+        save,
+        db_path=db_path,
+        auth_path=auth_path,
+        load=None,
+        no_archive=False,
+        verbose=verbose,
+    )
+    ctx.invoke(extend, db_path=db_path, no_archive=False, verbose=verbose)
+    ctx.invoke(
+        transcripts,
+        db_path=db_path,
+        archive_path=None,
+        starred_only=False,
+        verbose=verbose,
+    )
 
 
 if __name__ == "__main__":
