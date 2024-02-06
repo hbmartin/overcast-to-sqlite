@@ -59,11 +59,13 @@ For increased reporting verbosity, use the `-v` flag.
 
 ## Extending and saving full feeds
 
-This also includes an `extend` command that will download the XML files for all feeds you are subscribed to. These are stored in separate tables `feeds_extended` and `episodes_extended` with primary keys `xmlUrl` and  `enclosureUrl` respectively. (See points 4 and 5below for more information.)
+The `extend` command that will download the XML files for all feeds you are subscribed to and extract tags and attributes. These are stored in separate tables `feeds_extended` and `episodes_extended` with primary keys `xmlUrl` and  `enclosureUrl` respectively. (See points 4 and 5 below for more information.)
 
     $ overcast-to-sqlite extend
 
-Like the save command, this will attempt to archive feeds to `archive/feeds/` by default. This can be disabled with `--no-archive` or `-na`. It also supports the `-v` flag to print additional information.
+Like the save command, this will attempt to archive feeds to `archive/feeds/` by default. This can be disabled with `--no-archive` or `-na`.
+
+It also supports the `-v` flag to print additional information.
 
 There are a few caveats for this functionality:
 
@@ -77,14 +79,18 @@ Any suggestions for improving on these caveats are welcome, please [open an issu
 
 ## Downloading transcripts
 
-This also includes a `transcripts` command that will download the transcripts for all extended episodes with transcripts available.
+The `transcripts` command that will download the transcripts if available.
 
-The `save` and `extend` commands MUST be run prior to this command. It will then search the episodes_extended table for episodes with a "podcast:transcript:url" column and attempt to download the transcript from that URL. The file path for the download will then be stored in a "transcriptDownloadPath" column. 
+The `save` and `extend` commands MUST be run prior to this.
 
-It also supports the `-v` flag to print additional information.
+Episodes with a "podcast:transcript:url" value will be downloaded from that URL and the download's location will then be stored in "transcriptDownloadPath". 
 
     $ overcast-to-sqlite transcripts
 
-Like the save and extend commands, this will attempt to archive transcripts to `archive/transcripts/<feed title>/<episode title>` by default. A different path can be set with the `-p`/`--path` flag.
+Like previous commands, by default this will save transcripts to `archive/transcripts/<feed title>/<episode title>` by default.
+
+A different path can be set with the `-p`/`--path` flag.
+
+It also supports the `-v` flag to print additional information.
 
 There is also a `-s` flag to only download transcripts for starred episodes.
