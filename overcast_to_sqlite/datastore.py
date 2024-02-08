@@ -15,6 +15,7 @@ from .constants import (
     FEEDS_EXTENDED,
     INCLUDE_PODCAST_IDS,
     LAST_UPDATED,
+    LINK,
     OVERCAST_ID,
     PLAYLISTS,
     PROGRESS,
@@ -25,6 +26,7 @@ from .constants import (
     TRANSCRIPT_DL_PATH,
     TRANSCRIPT_TYPE,
     TRANSCRIPT_URL,
+    URL,
     USER_REC_DATE,
     USER_UPDATED_DATE,
     XML_URL,
@@ -62,6 +64,7 @@ class Datastore:
                     TITLE: str,
                     DESCRIPTION: str,
                     LAST_UPDATED: datetime.datetime,
+                    LINK: str,
                 },
                 pk=XML_URL,
                 foreign_keys=[(XML_URL, FEEDS, XML_URL)],
@@ -76,8 +79,8 @@ class Datastore:
                 {
                     OVERCAST_ID: int,
                     FEED_ID: int,
-                    "title": str,
-                    "url": str,
+                    TITLE: str,
+                    URL: str,
                     "overcastUrl": str,
                     "played": bool,
                     PROGRESS: int,
@@ -96,8 +99,9 @@ class Datastore:
                 {
                     ENCLOSURE_URL: str,
                     FEED_XML_URL: str,
-                    "title": str,
+                    TITLE: str,
                     "description": str,
+                    LINK: str,
                 },
                 pk=ENCLOSURE_URL,
                 foreign_keys=[
@@ -119,7 +123,6 @@ class Datastore:
                     INCLUDE_PODCAST_IDS: str,
                 },
                 pk=TITLE,
-                # not_null={"enclosureUrl"},
             )
         self.db.create_view(
             "episodes_played",
@@ -127,7 +130,7 @@ class Datastore:
                 "SELECT "
                 f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
                 f"CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred, "
-                f"{USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"{USER_UPDATED_DATE}, {EPISODES}.{URL}, {ENCLOSURE_URL} "
                 f"FROM {EPISODES} "
                 f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
                 f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC"
@@ -139,7 +142,7 @@ class Datastore:
             (
                 "SELECT "
                 f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
-                f"{USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"{USER_UPDATED_DATE}, {EPISODES}.{URL}, {ENCLOSURE_URL} "
                 f"FROM {EPISODES} "
                 f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
                 f"WHERE userDeleted=1 AND played=0 ORDER BY {USER_UPDATED_DATE} DESC"
@@ -151,7 +154,7 @@ class Datastore:
             (
                 "SELECT "
                 f"{EPISODES}.{TITLE}, {FEEDS}.{TITLE} as feed, played, progress, "
-                f"{USER_REC_DATE}, {USER_UPDATED_DATE}, overcastUrl, {ENCLOSURE_URL} "
+                f"{USER_REC_DATE}, {EPISODES}.{URL}, {ENCLOSURE_URL} "
                 f"FROM {EPISODES} "
                 f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
                 f"WHERE {USER_REC_DATE} IS NOT NULL ORDER BY {USER_UPDATED_DATE} DESC"
