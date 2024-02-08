@@ -29,7 +29,6 @@ from .constants import (
     USER_UPDATED_DATE,
     XML_URL,
 )
-from .exceptions import NoTranscriptsUrlError
 
 
 class Datastore:
@@ -219,6 +218,26 @@ class Datastore:
         """Upsert playlist into database."""
         self.db[PLAYLISTS].upsert(playlist, pk=TITLE)
 
+    def ensure_transcript_columns(self) -> bool:
+        """Ensure transcript columns exist in database.
+
+        Returns bool indicating if columns were added.
+        """
+        columns_added = False
+        try:
+            self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
+        except sqlite3.OperationalError:
+            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+            columns_added = True
+        try:
+            self.db.execute(
+                f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1",
+            )
+        except sqlite3.OperationalError:
+            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+            columns_added = True
+        return columns_added
+
     def transcripts_to_download(
         self,
         starred_only: bool,
@@ -227,27 +246,18 @@ class Datastore:
 
         Yields (title, url, mime_type, enclosure_url, feed_title)
         """
-        try:
-            self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
-        except sqlite3.OperationalError:
-            raise NoTranscriptsUrlError from None
-        try:
-            self.db.execute(
-                f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1",
-            )
-        except sqlite3.OperationalError:
-            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
         select = (
             f"SELECT {EPISODES_EXTENDED}.{TITLE}, {TRANSCRIPT_URL}, "
             f"{TRANSCRIPT_TYPE}, {EPISODES_EXTENDED}.{ENCLOSURE_URL}, "
             f"{FEEDS_EXTENDED}.{TITLE} FROM {EPISODES_EXTENDED} "
         )
         where = f"WHERE {TRANSCRIPT_DL_PATH} IS NULL AND {TRANSCRIPT_URL} IS NOT NULL"
+        order = f"ORDER BY {FEEDS_EXTENDED}.{TITLE} ASC"
         query = (
             (
                 f"{select} LEFT JOIN {FEEDS_EXTENDED} "
                 f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
-                f"{where}"
+                f"{where} {order}"
             )
             if not starred_only
             else (
@@ -256,7 +266,7 @@ class Datastore:
                 f"ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {EPISODES}.{ENCLOSURE_URL} "
                 f"LEFT JOIN {FEEDS_EXTENDED} "
                 f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
-                f"{where} AND {USER_REC_DATE} IS NOT NULL"
+                f"{where} AND {USER_REC_DATE} IS NOT NULL {order}"
             )
         )
 

@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 import requests
 
-from overcast_to_sqlite.exceptions import NoTranscriptsUrlError
+from overcast_to_sqlite.constants import TITLE
 
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
@@ -81,19 +81,23 @@ def save(
     else:
         if not Path(auth_path).exists():
             auth(auth_path)
+        print("🔉Fetching latest OPML from Overcast")
         xml = fetch_opml(
             auth_path,
             None if no_archive else _archive_path(db_path, "overcast"),
-            verbose,
         )
 
     for playlist in extract_playlists_from_opml(xml):
         if verbose:
-            print(f"Extracting playlist: {playlist['title']}")
+            print(f"▶️Saving playlist: {playlist['title']}")
         db.save_playlist(playlist)
     for feed, episodes in extract_feed_and_episodes_from_opml(xml):
+        if len(episodes) == 0:
+            if verbose:
+                print(f"⚠️Skipping {feed[TITLE]} (no episodes)")
+            continue
         if verbose:
-            print(f"Extracting {feed['title']} with {len(episodes)} episodes")
+            print(f"⤵️Saving {feed[TITLE]} (latest: {episodes[0][TITLE]})")
         ingested_feed_ids.add(feed["overcastId"])
         db.save_feed_and_episodes(feed, episodes)
 
@@ -112,8 +116,7 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
     """Download XML feed and extract all feed and episode tags and attributes."""
     db = Datastore(db_path)
     feeds_to_extend = db.get_feeds_to_extend()
-    if verbose:
-        print(f"Found {len(feeds_to_extend)} feeds to extend")
+    print(f"➡️Extending {len(feeds_to_extend)} feeds")
     for f in feeds_to_extend:
         title = _sanitize_for_path(f[0])
         url = f[1]
@@ -123,10 +126,14 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
             None if no_archive else _archive_path(db_path, "feeds"),
             verbose,
         )
+        if len(episodes) == 0:
+            if verbose:
+                print(f"⚠️Skipping {title} (no episodes)")
+            continue
         if verbose:
-            print(f"Extracting {title} with {len(episodes)} episodes")
+            print(f"⏩️Extending {title} (latest: {episodes[0][TITLE]})")
         if "errorCode" in feed:
-            print(f"⛔️ Found error: {feed['errorCode']}")
+            print(f"⛔️Found error: {feed['errorCode']}")
         db.save_extended_feed_and_episodes(feed, episodes)
 
 
@@ -159,41 +166,42 @@ def transcripts(
 
     if not transcripts_path.exists():
         transcripts_path.mkdir(parents=True)
-        if verbose:
-            print(f"Created {transcripts_path}")
+        print(f"🗂️Created {transcripts_path}")
 
-    try:
-        total = 0
-        for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
-            starred_only,
-        ):
-            if verbose:
-                print(f"Downloading {title} from {url}")
-            response = requests.get(url)
-            if not response.ok:
-                print(f"⛔ Error downloading {title} @ {url}: {response.status_code}")
-                if verbose:
-                    print(response.headers)
-                    print(response.text)
-                continue
-            feed_path = transcripts_path / _sanitize_for_path(feed_title)
-            if not feed_path.exists():
-                feed_path.mkdir(parents=True)
-            file_ext = _file_extension_for_type(response.headers, mimetype)
-            file_path = feed_path / (_sanitize_for_path(title) + file_ext)
-            with file_path.open(mode="wb") as file:
-                file.write(response.content)
-                db.update_transcript_download_paths(
-                    enclosure,
-                    str(file_path.absolute()),
-                )
-                total += 0
-        if verbose:
-            print(f"Downloaded {total} transcripts")
-    except NoTranscriptsUrlError:
-        print("🤔 No transcript URLs found in database, running extend command")
+    if db.ensure_transcript_columns():
+        print("⚠️No transcript URLs found in database, running extend command")
         extend(db_path, no_archive=False, verbose=verbose)
-        print("🔁 Please re-run the download command")
+
+    total = 0
+    current_feed = None
+    for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
+        starred_only,
+    ):
+        if current_feed != feed_title:
+            current_feed = feed_title
+            if verbose:
+                print(f"🔽️Downloading transcripts for feed {feed_title}")
+        if verbose:
+            print(f"⬇️Downloading {title} @ {url}")
+        response = requests.get(url)
+        if not response.ok:
+            print(f"⛔Error code {response.status_code} downloading {url}")
+            if verbose:
+                print(response.headers)
+                print(response.text)
+            continue
+        feed_path = transcripts_path / _sanitize_for_path(feed_title)
+        feed_path.mkdir(exist_ok=True)
+        file_ext = _file_extension_for_type(response.headers, mimetype)
+        file_path = feed_path / (_sanitize_for_path(title) + file_ext)
+        with file_path.open(mode="wb") as file:
+            file.write(response.content)
+            db.update_transcript_download_paths(
+                enclosure,
+                str(file_path.absolute()),
+            )
+            total += 1
+    print(f"↘️Downloaded {total} transcripts")
 
 
 @cli.command("all")

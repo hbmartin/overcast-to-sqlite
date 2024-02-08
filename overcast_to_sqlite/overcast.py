@@ -56,11 +56,9 @@ def _load_cookies(auth_json_path: str) -> Session:
         return session
 
 
-def fetch_opml(auth_json_path: str, archive_dir: Path | None, verbose: bool) -> str:
+def fetch_opml(auth_json_path: str, archive_dir: Path | None) -> str:
     """Fetch OPML from Overcast and optionally save OPML to an archive directory."""
     session = _load_cookies(auth_json_path)
-    if verbose:
-        print("Fetching latest OPML from Overcast")
     response = session.get(
         "https://overcast.fm/account/export_opml/extended",
         timeout=None,
@@ -71,8 +69,6 @@ def fetch_opml(auth_json_path: str, archive_dir: Path | None, verbose: bool) -> 
     if archive_dir:
         archive_dir.mkdir(parents=True, exist_ok=True)
         now = int(datetime.now(tz=timezone.utc).timestamp())
-        if verbose:
-            print(f"Saving OPML {now} to {archive_dir}")
         archive_dir.joinpath(f"overcast-{now}.opml").write_text(response_text)
     return response_text
 
