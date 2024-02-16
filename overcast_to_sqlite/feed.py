@@ -25,22 +25,26 @@ def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
             "{https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md}",
             "podcast:",
         )
-        .replace("{http://www.w3.org/2005/Atom}", "atom:")
-        .replace("{http://purl.org/rss/1.0/modules/content/}", "content:")
-        .replace("{http://purl.org/rss/1.0/modules/syndication/}", "sy:")
-        .replace("{http://web.resource.org/cc/}", "cc:")
-        .replace("{http://search.yahoo.com/mrss/}", "media:")
-        .replace("{http://www.google.com/schemas/play-podcasts/1.0}", "googleplay:")
-        .replace("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}", "rdf:")
         .replace("{http://a9.com/-/spec/opensearchrss/1.0/}", "openSearch:")
-        .replace("{http://www.w3.org/2003/01/geo/wgs84_pos#}", "geo:")
+        .replace("{http://fireside.fm/modules/rss/fireside}", "fireside:")
+        .replace("{http://purl.org/dc/elements/1.1/}", "dc:")
+        .replace("{http://purl.org/rss/1.0/modules/content/}", "content:")
+        .replace("{http://purl.org/rss/1.0/modules/slash/}", "slash:")
+        .replace("{http://purl.org/rss/1.0/modules/syndication/}", "sy:")
+        .replace("{http://search.yahoo.com/mrss/}", "media:")
+        .replace("{http://web.resource.org/cc/}", "cc:")
+        .replace("{http://www.georss.org/georss}", "georss:")
+        .replace("{http://www.google.com/schemas/play-podcasts/1.0}", "googleplay:")
         .replace("{http://www.rawvoice.com/rawvoiceRssModule/}", "rawvoice:")
         .replace("{http://www.spotify.com/ns/rss}", "spotify:")
-        .replace("{http://fireside.fm/modules/rss/fireside}", "fireside:")
+        .replace("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}", "rdf:")
+        .replace("{http://www.w3.org/2003/01/geo/wgs84_pos#}", "geo:")
+        .replace("{http://www.w3.org/2005/Atom}", "atom:")
         .replace("{https://feed.press/xmlns}", "feedpress:")
-        .replace("{https://schema.acast.com/1.0/}", "acast:")
         .replace("{https://omny.fm/rss-extensions}", "omny:")
-        .replace("{{https://w3id.org/rp/v1}", "radiopublic:")
+        .replace("{https://schema.acast.com/1.0/}", "acast:")
+        .replace("{http://wellformedweb.org/CommentAPI/}", "wfw:")
+        .replace("{https://w3id.org/rp/v1}", "radiopublic:")
     )
     if element.text and not element.text.isspace():
         if "date" in tag.lower():
@@ -63,10 +67,9 @@ def fetch_xml_and_extract(
     response = requests.get(xml_url)
     now = datetime.now(tz=timezone.utc).isoformat()
     if not response.ok:
-        print(f"Failed to fetch podcast feed {xml_url}.\n{response.headers}")
+        print(f"⛔️ Error code {response.status_code} fetching podcast feed {xml_url}\n{response.headers}")
         return {
             XML_URL: xml_url,
-            "lastUpdated": now,
             "errorCode": response.status_code,
         }, []
 

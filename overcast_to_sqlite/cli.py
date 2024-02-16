@@ -185,7 +185,7 @@ def transcripts(
             print(f"⬇️Downloading {title} @ {url}")
         response = requests.get(url)
         if not response.ok:
-            print(f"⛔Error code {response.status_code} downloading {url}")
+            print(f"⛔ Error code {response.status_code} downloading {url}")
             if verbose:
                 print(response.headers)
                 print(response.text)
