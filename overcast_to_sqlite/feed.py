@@ -27,6 +27,7 @@ def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
         )
         .replace("{http://a9.com/-/spec/opensearchrss/1.0/}", "openSearch:")
         .replace("{http://fireside.fm/modules/rss/fireside}", "fireside:")
+        .replace("{http://podlove.org/simple-chapters}", "psc:")
         .replace("{http://purl.org/dc/elements/1.1/}", "dc:")
         .replace("{http://purl.org/rss/1.0/modules/content/}", "content:")
         .replace("{http://purl.org/rss/1.0/modules/slash/}", "slash:")
@@ -67,7 +68,9 @@ def fetch_xml_and_extract(
     response = requests.get(xml_url)
     now = datetime.now(tz=timezone.utc).isoformat()
     if not response.ok:
-        print(f"⛔️ Error code {response.status_code} fetching podcast feed {xml_url}\n{response.headers}")
+        print(f"⛔️ Error {response.status_code} fetching podcast feed {xml_url}")
+        if verbose:
+            print(response.headers)
         return {
             XML_URL: xml_url,
             "errorCode": response.status_code,
