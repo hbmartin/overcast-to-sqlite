@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from pathlib import Path
 
 import click
@@ -15,7 +14,12 @@ from .overcast import (
     extract_playlists_from_opml,
     fetch_opml,
 )
-from .utils import _archive_path, _file_extension_for_type, _sanitize_for_path
+from .utils import (
+    _archive_path,
+    _file_extension_for_type,
+    _headers_from_auth,
+    _sanitize_for_path,
+)
 
 
 @click.group
@@ -112,19 +116,34 @@ def save(
 )
 @click.option("-na", "--no-archive", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
+@click.option(
+    "-a",
+    "--auth",
+    "auth_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+    default="auth.json",
+    help="Path to auth.json file",
+)
+def extend(
+    db_path: str,
+    no_archive: bool,
+    verbose: bool,
+    auth_path: str,
+) -> None:
     """Download XML feed and extract all feed and episode tags and attributes."""
     db = Datastore(db_path)
     feeds_to_extend = db.get_feeds_to_extend()
     print(f"➡️Extending {len(feeds_to_extend)} feeds")
+
     for f in feeds_to_extend:
         title = _sanitize_for_path(f[0])
         url = f[1]
         feed, episodes = fetch_xml_and_extract(
-            url,
-            title,
-            None if no_archive else _archive_path(db_path, "feeds"),
-            verbose,
+            xml_url=url,
+            title=title,
+            archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
+            verbose=verbose,
+            headers=_headers_from_auth(auth_path),
         )
         if len(episodes) == 0:
             if verbose:
@@ -151,11 +170,20 @@ def extend(db_path: str, no_archive: bool, verbose: bool) -> None:
 )
 @click.option("-s", "--starred-only", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
+@click.option(
+    "-a",
+    "--auth",
+    "auth_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+    default="auth.json",
+    help="Path to auth.json file",
+)
 def transcripts(
     db_path: str,
     archive_path: str | None,
     starred_only: bool,
     verbose: bool,
+    auth_path: str,
 ) -> None:
     """Download available transcripts for all or starred episodes."""
     db = Datastore(db_path)
@@ -183,7 +211,7 @@ def transcripts(
                 print(f"🔽️Downloading transcripts for feed {feed_title}")
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")
-        response = requests.get(url)
+        response = requests.get(url, headers=_headers_from_auth(auth_path))
         if not response.ok:
             print(f"⛔ Error code {response.status_code} downloading {url}")
             if verbose:
@@ -234,13 +262,16 @@ def save_extend_download(
         no_archive=False,
         verbose=verbose,
     )
-    ctx.invoke(extend, db_path=db_path, no_archive=False, verbose=verbose)
+    ctx.invoke(
+        extend, db_path=db_path, no_archive=False, verbose=verbose, auth_path=auth_path,
+    )
     ctx.invoke(
         transcripts,
         db_path=db_path,
         archive_path=None,
         starred_only=False,
         verbose=verbose,
+        auth_path=auth_path,
     )
 
 

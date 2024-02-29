@@ -1,8 +1,19 @@
+import json
 from collections.abc import Mapping
 from mimetypes import guess_extension
 from pathlib import Path
 
 import dateutil
+
+
+def _headers_from_auth(auth_path: str) -> dict:
+    with Path(auth_path).open() as f:
+        user_agent = json.load(f).get("user-agent")
+    return _headers(user_agent)
+
+
+def _headers(user_agent: str | None) -> dict:
+    return {"User-Agent": user_agent} if user_agent is not None else {}
 
 
 def _parse_date_or_none(date_string: str) -> str | None:
