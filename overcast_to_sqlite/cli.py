@@ -263,7 +263,11 @@ def save_extend_download(
         verbose=verbose,
     )
     ctx.invoke(
-        extend, db_path=db_path, no_archive=False, verbose=verbose, auth_path=auth_path,
+        extend,
+        db_path=db_path,
+        no_archive=False,
+        verbose=verbose,
+        auth_path=auth_path,
     )
     ctx.invoke(
         transcripts,
