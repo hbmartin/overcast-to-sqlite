@@ -211,7 +211,11 @@ def transcripts(
                 print(f"🔽️Downloading transcripts for feed {feed_title}")
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")
-        response = requests.get(url, headers=_headers_from_auth(auth_path))
+        try:
+            response = requests.get(url, headers=_headers_from_auth(auth_path))
+        except requests.exceptions.RequestException as e:
+            print(f"⛔ Error downloading {url}: {e}")
+            continue
         if not response.ok:
             print(f"⛔ Error code {response.status_code} downloading {url}")
             if verbose:
