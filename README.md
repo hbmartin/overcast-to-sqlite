@@ -94,3 +94,33 @@ A different path can be set with the `-p`/`--path` flag.
 It also supports the `-v` flag to print additional information.
 
 There is also a `-s` flag to only download transcripts for starred episodes.
+
+## See also
+
+- [Datasette](https://datasette.io/)
+- [sqlite-utils](https://sqlite-utils.datasette.io/en/stable/)
+- [Podcast-Transcript-Tools](https://github.com/hbmartin/podcast-transcript-tools/)
+- [Overcast-Parser](https://github.com/hbmartin/overcast_parser)
+
+## Development
+
+Pull requests are very welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+### Setup
+
+```bash
+git clone git@github.com:hbmartin/overcast-to-sqlite.git
+cd overcast-to-sqlite
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 -m overcast_to_sqlite.cli all -v
+```
+
+### Code Formatting
+
+This project is linted with [ruff](https://docs.astral.sh/ruff/) and uses [Black](https://github.com/ambv/black) code formatting.
+
+## Authors
+
+* [Harold Martin](https://www.linkedin.com/in/harold-martin-98526971/) - harold.martin at gmail

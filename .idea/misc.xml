@@ -6,5 +6,5 @@
     <option name="pathToExecutable" value="/opt/homebrew/bin/black" />
     <option name="sdkName" value="Python 3.9 (overcast-to-sqlite)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.9 (overcast-to-sqlite)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (overcast-to-sqlite)" project-jdk-type="Python SDK" />
 </project>
