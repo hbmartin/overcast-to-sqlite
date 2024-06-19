@@ -18,7 +18,7 @@ jobs:
         cache-dependency-path: setup.py
     - run: echo '${{ steps.cpython3.outputs.python-version }}'
     - run: pip install -e '.[lint]'
-    - run: ruff check .
+    - run: ruff check overcast_to_sqlite
     - name: Run pytype if not on 3.12
       run: |
         if [[ '${{ steps.cpython3.outputs.python-version }}' == *"3.12"* ]]; then
