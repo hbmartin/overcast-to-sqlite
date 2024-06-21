@@ -11,6 +11,7 @@
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist/overcast-to-sqlite-0.1.0/overcast_to_sqlite.egg-info" />
       <excludeFolder url="file://$MODULE_DIR$/overcast_to_sqlite.egg-info" />
+      <excludeFolder url="file://$MODULE_DIR$/env" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

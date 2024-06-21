@@ -37,6 +37,7 @@ def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
         .replace("{http://www.georss.org/georss}", "georss:")
         .replace("{http://www.google.com/schemas/play-podcasts/1.0}", "googleplay:")
         .replace("{http://www.rawvoice.com/rawvoiceRssModule/}", "rawvoice:")
+        .replace("{http://www.rssboard.org/media-rss}", "rssboard:")
         .replace("{http://www.spotify.com/ns/rss}", "spotify:")
         .replace("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}", "rdf:")
         .replace("{http://www.w3.org/2003/01/geo/wgs84_pos#}", "geo:")

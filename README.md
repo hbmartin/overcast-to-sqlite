@@ -114,7 +114,7 @@ cd overcast-to-sqlite
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python3 -m overcast_to_sqlite.cli all -v
+python -m overcast_to_sqlite.cli all -v
 ```
 
 ### Code Formatting

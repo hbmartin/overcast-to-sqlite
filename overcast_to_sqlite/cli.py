@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 import requests
 
-from overcast_to_sqlite.constants import TITLE
+from .constants import TITLE
 
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
@@ -197,8 +197,7 @@ def transcripts(
         print(f"🗂️Created {transcripts_path}")
 
     if db.ensure_transcript_columns():
-        print("⚠️No transcript URLs found in database, running extend command")
-        extend(db_path, no_archive=False, verbose=verbose)
+        print("⚠️No transcript URLs found in database, please run `extend`")
 
     total = 0
     current_feed = None
