@@ -1,0 +1,497 @@
+<!doctypehtml>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <meta content=width =device-width,initial-scale =1 name=viewport>
+    <meta content="Discover your year in podcasts with Overcast Wrapped 2023! A cool data summary of your listening habits, showcasing your favorite podcasts and episodes. Celebrate your unique podcast discoveries!" name=description>
+    <meta content="Discover your year in podcasts with Overcast Wrapped 2023! A cool data summary of your listening habits, showcasing your favorite podcasts and episodes. Celebrate your unique podcast discoveries!" name=og:description>
+    <meta content="Overcast Wrapped 2023" name=og:title>
+    <meta content=https://overcast-wrapped-2023.pages.dev/ name=og:url>
+    <meta content=https://overcast-wrapped-2023.pages.dev/overcast-wrapped-2023.jpg name=og:image>
+    <meta content=summary name=twitter:card>
+    <meta content=@hmartin name=twitter:creator>
+    <title>Overcast Wrapped 2023</title>
+    <script crossorigin src=https://js.sentry-cdn.com/e2e069d5daa90ae883cacba110f9b5da.min.js></script>
+    <link as=style href=https://cdn.jsdelivr.net/npm/charts.css/dist/charts.min.css onload=this.onload =null;this.rel ='stylesheet' rel=preload>
+    <style>
+    ::-webkit-scrollbar {
+        width:8px
+    }
+
+    ::-webkit-scrollbar-track {
+        background:#f1f1f1
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background:#888
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background:#555
+    }
+
+    * {
+        color: #fff;
+        text-shadow: 0 0 1px #000000b3;
+        margin: 0;
+        padding:0
+    }
+
+    body {
+        -webkit-font-smoothing: antialiased;
+        background: #4a626e;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+        display:flex
+    }
+
+    .drag-image {
+        text-align: center;
+        border: 1px dashed #fff;
+        border-radius: 5px;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 50%;
+        min-width: 350px;
+        height: 400px;
+        font-weight: 400;
+        display:flex
+    }
+
+    a {
+        color:#fff
+    }
+
+    h1 {
+        text-align: center;
+        color:#fff
+    }
+
+    .drag-image.active {
+        border:3px solid #fff
+    }
+
+    .drag-image h6 {
+        color: #fff;
+        font-size: 20px;
+        font-weight:300
+    }
+
+    .drag-image span {
+        color: #fff;
+        margin: 10px 0 15px;
+        font-size: 14px;
+        font-weight:300
+    }
+
+    .drag-image button {
+        color: #fff;
+        cursor: pointer;
+        background: 0 0;
+        border: 1px solid #fff;
+        border-radius: 5px;
+        outline: none;
+        padding: 10px 25px;
+        font-size: 14px;
+        font-weight: 300;
+        transition:all .5s
+    }
+
+    #loading-spinner {
+        width: 400px;
+        height: 400px;
+        display:none
+    }
+
+    .graphContainer {
+        width: 80%;
+        min-width: 350px;
+        margin-top:150px
+    }
+
+    .graphContainer > h1 {
+        margin-bottom:30px
+    }
+
+    th > a {
+        text-decoration:none
+    }
+
+    .charts-css .data {
+        text-shadow: 0 0 2px #ffffffe6;
+        color: #000000e6;
+        margin-right: 8px;
+        font-family: ui-monospace, Menlo, Monaco, Cascadia Mono, Segoe UI Mono, Roboto Mono, Oxygen Mono, Ubuntu Monospace, Source Code Pro, Fira Mono, Droid Sans Mono, Courier New, monospace;
+        font-size:80%
+    }
+
+    ul {
+        list-style:none
+    }
+
+    li > a, .graphContainer > a {
+        text-decoration:none
+    }
+
+    #header {
+        width: 100%;
+        padding: 10px;
+        font-size: 12px;
+        position: absolute;
+        top: 0;
+        right:0
+    }
+
+    #header > a {
+        margin-left:25%
+    }
+
+    .charts-css.bar tbody tr td {
+        clip-path:inset(0% round 0 10px 10px 0)
+    }
+
+    .charts-css {
+        --color-1: #ea5545;
+        --color-2: #f46a9b;
+        --color-3: #ef9b20;
+        --color-4: #edbf33;
+        --color-5: #ede15b;
+        --color-6: #bdcf32;
+        --color-7: #87bc45;
+        --color-8: #27aeef;
+        --color-9: #b33dc6;
+        --color-10: #912d50
+    }
+    </style>
+</head>
+<body>
+    <div id=header>
+        <a href=https://github.com/hbmartin/overcast-to-sqlite target=_blank>Your Overcast stats in SQLite</a>
+    </div>
+    <div class=drag-image>
+        <svg viewbox="0 0 24 24" height=24 width=24 xmlns=http://www.w3.org/2000/svg>
+            <path d="M11.362 2c4.156 0 2.638 6 2.638 6s6-1.65 6 2.457v11.543h-16v-20h7.362zm.827-2h-10.189v24h20v-14.386c0-2.391-6.648-9.614-9.811-9.614zm-3.189 18v-7.02l6 3.527-6 3.493z" fill=#fff/>
+        </svg>
+        <br>
+        <h6 class=instructions>
+            Export "
+            <b>All data</b>
+            " from
+            <br>
+            <a href=https://overcast.fm/account target=_blank>your Overcast account</a>
+            <br>
+            then drop that file here
+        </h6>
+        <br>
+        <button>Upload File</button>
+        <input hidden type=file>
+        <br>
+        <span>
+            Your data is not uploaded anywhere.
+            <br>
+            All processing happens on your computer.
+        </span>
+    </div>
+    <svg enable-background="new 0 0 100 100" viewbox="0 0 100 100" id=loading-spinner version=1.1 x=0px xml:space=preserve xmlns=http://www.w3.org/2000/svg y=0px>
+        <circle cx=50 cy=50 fill=none r=47 stroke=#fff stroke-dasharray=14.2472,14.2472 stroke-miterlimit=15 stroke-width=6>
+            <animatetransform from="0 50 50" to="360 50 50" attributename=transform attributetype=XML dur=5s repeatcount=indefinite type=rotate/>
+        </circle>
+        <circle cx=50 cy=50 fill=none r=39 stroke=#fff stroke-dasharray=10,10 stroke-miterlimit=10 stroke-width=1>
+            <animatetransform from="0 50 50" to="-360 50 50" attributename=transform attributetype=XML dur=5s repeatcount=indefinite type=rotate/>
+        </circle>
+        <g fill=#fff>
+            <rect height=30 width=5 x=30 y=35>
+                <animatetransform values="0 5 ; 0 -5; 0 5" attributename=transform begin=0.1 dur=1s repeatcount=indefinite type=translate/>
+            </rect>
+            <rect height=30 width=5 x=40 y=35>
+                <animatetransform values="0 5 ; 0 -5; 0 5" attributename=transform begin=0.2 dur=1s repeatcount=indefinite type=translate/>
+            </rect>
+            <rect height=30 width=5 x=50 y=35>
+                <animatetransform values="0 5 ; 0 -5; 0 5" attributename=transform begin=0.3 dur=1s repeatcount=indefinite type=translate/>
+            </rect>
+            <rect height=30 width=5 x=60 y=35>
+                <animatetransform values="0 5 ; 0 -5; 0 5" attributename=transform begin=0.4 dur=1s repeatcount=indefinite type=translate/>
+            </rect>
+            <rect height=30 width=5 x=70 y=35>
+                <animatetransform values="0 5 ; 0 -5; 0 5" attributename=transform begin=0.5 dur=1s repeatcount=indefinite type=translate/>
+            </rect>
+        </g>
+    </svg>
+    <script>
+    !function(t, e) {
+        var o,
+            n,
+            p,
+            r;
+        e.__SV || (window.posthog = e, e._i = [], e.init = function(i, s, a) {
+            function g(t, e) {
+                var o = e.split(".");
+                2 == o.length && (t = t[o[0]], e = o[1]),
+                t[e] = function() {
+                    t.push([e].concat(Array.prototype.slice.call(arguments, 0)))
+                }
+            }
+            (p = t.createElement("script")).type = "text/javascript",
+            p.async = !0,
+            p.src = s.api_host + "/static/array.js",
+            (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r);
+            var u = e;
+            for (void 0 !== a ? u = e[a] = [] : a = "posthog", u.people = u.people || [], u.toString = function(t) {
+                var e = "posthog";
+                return "posthog" !== a && (e += "." + a), t || (e += " (stub)"), e
+            }, u.people.toString = function() {
+                return u.toString(1) + ".people (stub)"
+            }, o = "capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "), n = 0; n < o.length; n++)
+                g(u, o[n]);
+            e._i.push([i, s, a])
+        }, e.__SV = 1)
+    }(document, window.posthog || []);
+    posthog.init('phc_9IIxF5FvLP0B0Ude0Egd8Cn8EWQqQgFqvSCorqyLdIF', {
+        api_host: 'https://app.posthog.com'
+    })
+
+    const listenedCutoffSeconds = 300;
+    const dropArea = document.querySelector(".drag-image"),
+        button = dropArea.querySelector("button"),
+        input = dropArea.querySelector("input");
+
+    let file;
+
+    button.onclick = () => {
+        input.click();
+    }
+
+    input.addEventListener("change", function() {
+        file = this.files[0];
+        dropArea.classList.add("active");
+        viewfile();
+    });
+
+    dropArea.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropArea.classList.add("active");
+    });
+
+    dropArea.addEventListener("dragleave", () => {
+        dropArea.classList.remove("active");
+    });
+
+    dropArea.addEventListener("drop", (event) => {
+        event.preventDefault();
+
+        file = event.dataTransfer.files[0];
+        viewfile();
+    });
+
+    function getPodcastAggregationTemplate(overcastId, feedTitle, url, addedDate) {
+        return {
+            "id": overcastId,
+            "title": feedTitle,
+            "url": url,
+            "addedDate": addedDate,
+            "timeListened": 0,
+            "episodesListened": 0,
+            "episodesDeleted": 0,
+            "episodesFavorited": 0,
+        }
+    }
+
+    function generateTable(title, data, key, scale, dataFn) {
+        let table = `<div class="graphContainer"><h1>${title}</h1>`;
+        table += '<table class="charts-css bar show-labels show-data-on-hover show-primary-axis data-spacing-10" style="--labels-size: 280px; --labels-align-inline: center; --primary-axis-color: #00000066;"><tbody>';
+        for (const item of data) {
+            table += `<tr><th scope="row"><a target="_blank" href="${item.url}">${item.title.length > 50 ? item.title.slice(0, 50) + "…" : item.title}</a></th>`;
+            table += `<td style="--size: ${item[key] / (scale ? scale : data[0][key])};"><span class="data">${dataFn ? dataFn(item) : item[key]}</span></td></tr>`;
+        }
+
+        table += '</tbody></table></div>';
+        return table;
+    }
+
+    function addTable(title, podcastsSorted, key) {
+        console.time(key);
+        podcastsSorted.sort((a, b) => a[key] - b[key]);
+        const dataTop = podcastsSorted.slice(-10).filter((ep) => ep[key] != 0).reverse();
+        document.body.insertAdjacentHTML("beforeend", generateTable(
+        title,
+        dataTop,
+        key,
+        ));
+        console.timeEnd(key);
+    }
+
+    function showError(msg) {
+        console.error(msg);
+        document.getElementById("loading-spinner").style.display = "none";
+        dropArea.style.display = "flex";
+        dropArea.classList.remove("active");
+        alert(msg);
+        try {
+            posthog.capture('error', {
+                "msg": msg
+            });
+        } catch (err) {
+            Sentry.captureException(err);
+        }
+    }
+
+    function viewfile() {
+        console.time("read")
+        const podcastData = {
+            "podcastsAddedThisYearById": [],
+            "firstPodcastListenedTo": ["episode title", "feed title", "url", "2024-01-01T00:00:00-05:00"],
+            "lastPodcastListenedTo": ["episode title", "feed title", "url", "0"],
+            "longestPodcastListenedTo": ["episode title", "feed title", "url", "0"],
+            "podcasts": {},
+            "totalTimeListened": 0,
+            "totalEpisodesListened": 0,
+        };
+
+        dropArea.style.display = "none";
+        document.getElementById("loading-spinner").style.display = "block";
+        let fileReader = new FileReader();
+        fileReader.onerror = () => {
+            showError("Error reading file: " + fileReader.error);
+            Sentry.captureException(fileReader.error);
+        }
+        fileReader.onload = () => {
+            console.timeEnd("read")
+            console.time("parse")
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(fileReader.result, "application/xml");
+            const feedsOutline = doc.querySelectorAll('[text="feeds"]');
+            const errorNode = doc.querySelector("parsererror");
+            if (errorNode) {
+                showError("Error parsing file: " + errorNode.textContent);
+                Sentry.captureException(errorNode);
+                return;
+            }
+
+
+            if (feedsOutline.length == 0) {
+                showError("Could not find feeds in file! Are you sure you downloaded the 'All data' file?");
+                return;
+            }
+            const feeds = Array.from(feedsOutline[0].children);
+            console.timeEnd("parse")
+            console.time("feeds")
+
+            for (const element of feeds) {
+                let overcastId = element.attributes["overcastId"];
+                if (!overcastId) {
+                    continue;
+                }
+                podcastData["podcasts"][overcastId.value] = getPodcastAggregationTemplate(
+                overcastId.value,
+                element.attributes["title"].value,
+                element.attributes["htmlUrl"].value,
+                element.attributes["overcastAddedDate"].value
+                );
+                try {
+                    posthog.capture('feed', {
+                        "title": element.attributes["title"].value,
+                        "url": element.attributes["xmlUrl"].value
+                    });
+                } catch (err) {
+                    Sentry.captureException(err);
+                }
+                if (element.attributes["overcastAddedDate"].value.includes("2023")) {
+                    podcastData["podcastsAddedThisYearById"].push(overcastId.value);
+                }
+                let episodes = Array.from(element.children);
+                for (const episode of episodes) {
+                    let updatedDate = episode.attributes["userUpdatedDate"];
+                    if (!updatedDate || !updatedDate.value.includes("2023")) {
+                        continue;
+                    }
+
+                    podcastData["totalEpisodesListened"] += 1;
+                    let progress = episode.attributes["progress"];
+                    if (progress != null) {
+                        let progressInt = parseInt(progress.value);
+                        podcastData["podcasts"][overcastId.value]["timeListened"] += progressInt;
+                        podcastData["totalTimeListened"] += progressInt;
+                        if (podcastData["longestPodcastListenedTo"][3] < progressInt) {
+                            podcastData["longestPodcastListenedTo"] = [episode.attributes["title"].value, element.attributes["title"].value, episode.attributes["overcastUrl"].value, progressInt];
+                        }
+                    }
+                    let played = episode.attributes["played"];
+                    if (played || (progress != null && progress.value > listenedCutoffSeconds)) {
+                        podcastData["podcasts"][overcastId.value]["episodesListened"] += 1;
+
+                        if (podcastData["firstPodcastListenedTo"][3] > updatedDate.value) {
+                            podcastData["firstPodcastListenedTo"] = [episode.attributes["title"].value, element.attributes["title"].value, episode.attributes["overcastUrl"].value, updatedDate.value];
+                        }
+
+                        if (podcastData["lastPodcastListenedTo"][3] < updatedDate.value) {
+                            podcastData["lastPodcastListenedTo"] = [episode.attributes["title"].value, element.attributes["title"].value, episode.attributes["overcastUrl"].value, updatedDate.value];
+                        }
+                    } else {
+                        let deleted = episode.attributes["userDeleted"];
+                        if (deleted) {
+                            podcastData["podcasts"][overcastId.value]["episodesDeleted"] += 1;
+                        }
+                    }
+
+                    let favorited = episode.attributes["userRecommendedDate"];
+                    if (favorited) {
+                        podcastData["podcasts"][overcastId.value]["episodesFavorited"] += 1;
+                    }
+                }
+            }
+            console.timeEnd("feeds");
+            if (podcastData["totalEpisodesListened"] == 0) {
+                showError("Could not find episodes in file! Are you sure you downloaded the 'All data' file?");
+                return;
+            }
+            console.time("firstAndLast");
+            document.getElementById("loading-spinner").style.display = "none";
+            document.body.insertAdjacentHTML(
+            "beforeend",
+            '<div class="graphContainer"><h1>🔁 Highlights From Last Year</h1>🚀 First episode you listened to in 2023<br />' +
+            `<a href=${podcastData["firstPodcastListenedTo"][2]} target="_blank"><h2>${podcastData["firstPodcastListenedTo"][0]}</h2></a><h3>by ${podcastData["firstPodcastListenedTo"][1]}</h3>` +
+            '<br />🏁 Last episode you listened to in 2023<br />' +
+            `<a href=${podcastData["lastPodcastListenedTo"][2]} target="_blank"><h2>${podcastData["lastPodcastListenedTo"][0]}</h2></a><h3>by ${podcastData["lastPodcastListenedTo"][1]}</h3>` +
+            '<br />🏃 Longest episode you listened to in 2023<br />' +
+            `<a href=${podcastData["longestPodcastListenedTo"][2]} target="_blank"><h2>${podcastData["longestPodcastListenedTo"][0]}</h2></a><h3>by ${podcastData["longestPodcastListenedTo"][1]}</h3></div>`
+            );
+            console.timeEnd("firstAndLast");
+
+            console.time("timeListened");
+            const podcastsSorted = Object.values(podcastData["podcasts"]);
+            podcastsSorted.sort((a, b) => a["timeListened"] - b["timeListened"]);
+            const podcastsByTimeListened = podcastsSorted.slice(-10).filter((ep) => ep["timeListened"] != 0).reverse();
+            document.body.insertAdjacentHTML("beforeend", generateTable(
+            "🕰️ Most Time Listened",
+            podcastsByTimeListened,
+            "timeListened",
+            podcastsByTimeListened[0]["timeListened"],
+            (item) => {
+                return `${Math.round(item["timeListened"] / 60 / 60)}h ${Math.round(item["timeListened"] / 60 % 60)}m`;
+            }
+            ));
+            console.timeEnd("timeListened");
+
+
+            addTable("🧮 Most Episodes Listened", podcastsSorted, "episodesListened");
+            addTable("⭐️ Most Episodes Favorited", podcastsSorted, "episodesFavorited");
+            addTable("🗑️ Most Episodes Deleted", podcastsSorted, "episodesDeleted");
+
+            console.time("addedThisYear");
+            let addedPodcasts = podcastData["podcastsAddedThisYearById"]
+            .map((id) => podcastData["podcasts"][id])
+            .map((pod) => `<li><a target="_blank" href="${pod["url"]}">${pod["title"]}</a></li>`);
+            document.body.insertAdjacentHTML("beforeend", `<div class="graphContainer"><h1>📅 Podcasts You Discovered in 2023</h1><ul>${addedPodcasts.join("")}</ul></div><br /><p>&copy; 2024 Harold Martin</p><br />`);
+            console.timeEnd("addedThisYear");
+            document.body.style.background = "radial-gradient(circle at -4% -12.9%, rgb(74, 98, 110) 0.3%, rgb(30, 33, 48) 90.2%)";
+        }
+        fileReader.readAsText(file);
+    }
+    </script>
+</body>
+</html>
