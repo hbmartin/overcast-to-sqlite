@@ -5,7 +5,6 @@ import click
 import requests
 
 from .constants import TITLE
-
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
