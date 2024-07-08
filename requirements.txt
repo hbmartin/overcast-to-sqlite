@@ -17,7 +17,6 @@ mypy-extensions==1.0.0
 ninja==1.11.1.1
 pathspec==0.12.1
 pluggy==1.5.0
-pycnite==2024.6.13
 pydot==2.0.0
 Pygments==2.18.0
 pyparsing==3.1.2
@@ -36,7 +35,6 @@ sqlite-fts4==1.0.3
 sqlite-utils==3.36
 tabulate==0.9.0
 toml==0.10.2
-trove-classifiers==2024.5.22
 types-python-dateutil==2.9.0.20240316
 types-requests==2.32.0.20240622
 typing_extensions==4.12.2
