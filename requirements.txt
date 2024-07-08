@@ -36,7 +36,7 @@ sqlite-fts4==1.0.3
 sqlite-utils==3.36
 tabulate==0.9.0
 toml==0.10.2
-trove-classifiers==2024.5.22
+trove-classifiers==2024.7.2
 types-python-dateutil==2.9.0.20240316
 types-requests==2.32.0.20240622
 typing_extensions==4.12.2
