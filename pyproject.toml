@@ -2,6 +2,9 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[options]
+packages = ["overcast_to_sqlite"]
+
 [project]
 name = "overcast-to-sqlite"
 version = "0.5.0"
