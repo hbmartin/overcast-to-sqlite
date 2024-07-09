@@ -16,7 +16,7 @@ from .overcast import (
 from .utils import (
     _archive_path,
     _file_extension_for_type,
-    _headers_from_auth,
+    _headers_ua,
     _sanitize_for_path,
 )
 
@@ -115,19 +115,10 @@ def save(
 )
 @click.option("-na", "--no-archive", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-@click.option(
-    "-a",
-    "--auth",
-    "auth_path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
-    default="auth.json",
-    help="Path to auth.json file",
-)
 def extend(
     db_path: str,
     no_archive: bool,
     verbose: bool,
-    auth_path: str,
 ) -> None:
     """Download XML feed and extract all feed and episode tags and attributes."""
     db = Datastore(db_path)
@@ -142,7 +133,7 @@ def extend(
             title=title,
             archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
             verbose=verbose,
-            headers=_headers_from_auth(auth_path),
+            headers=_headers_ua(),
         )
         if len(episodes) == 0:
             if verbose:
@@ -169,20 +160,11 @@ def extend(
 )
 @click.option("-s", "--starred-only", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-@click.option(
-    "-a",
-    "--auth",
-    "auth_path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
-    default="auth.json",
-    help="Path to auth.json file",
-)
 def transcripts(
     db_path: str,
     archive_path: str | None,
     starred_only: bool,
     verbose: bool,
-    auth_path: str,
 ) -> None:
     """Download available transcripts for all or starred episodes."""
     db = Datastore(db_path)
@@ -210,7 +192,7 @@ def transcripts(
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")
         try:
-            response = requests.get(url, headers=_headers_from_auth(auth_path))
+            response = requests.get(url, headers=_headers_ua())
         except requests.exceptions.RequestException as e:
             print(f"⛔ Error downloading {url}: {e}")
             continue
@@ -269,7 +251,6 @@ def save_extend_download(
         db_path=db_path,
         no_archive=False,
         verbose=verbose,
-        auth_path=auth_path,
     )
     ctx.invoke(
         transcripts,
@@ -277,7 +258,6 @@ def save_extend_download(
         archive_path=None,
         starred_only=False,
         verbose=verbose,
-        auth_path=auth_path,
     )
 
 
