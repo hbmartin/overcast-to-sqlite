@@ -4,10 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overcast-to-sqlite"
-dynamic = "0.5.0"
+version = "0.5.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
-license = "Apache License, Version 2.0"
 requires-python = ">=3.11"
 authors = [
     { name = "Harold Martin", email = "Harold.Martin@gmail.com" },
@@ -42,10 +41,13 @@ exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_ch
 # Same as Black.
 line-length = 88
 indent-width = 4
+target-version = "py311"
 
 lint.select = ["ALL"]
-#lint.ignore = ["ANN101", "D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "E203", "ERA001", "EXE001", "FBT001", "S113", "S314", "S608", "T201", "UP017"]
-target-version = "py311"
+lint.ignore = ["D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "S608", "S113", "S314", "T201"]
+
+[tool.ruff.lint.per-file-ignores]
+"overcast_to_sqlite/cli.py" = ["FBT001"]
 
 [tool.ruff.format]
 # Same as Black.

@@ -1,6 +1,6 @@
 import json
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
@@ -68,7 +68,7 @@ def fetch_opml(auth_json_path: str, archive_dir: Path | None) -> str:
     response_text = response.text
     if archive_dir:
         archive_dir.mkdir(parents=True, exist_ok=True)
-        now = int(datetime.now(tz=timezone.utc).timestamp())
+        now = int(datetime.now(tz=UTC).timestamp())
         archive_dir.joinpath(f"overcast-{now}.opml").write_text(response_text)
     return response_text
 

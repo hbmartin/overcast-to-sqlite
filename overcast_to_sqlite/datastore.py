@@ -56,7 +56,6 @@ class Datastore:
                     "dateRemoveDetected": datetime.datetime,
                 },
                 pk=OVERCAST_ID,
-                # not_null={"overcastId", "title", "xmlUrl"},
             )
         if FEEDS_EXTENDED not in self.db.table_names():
             self.db[FEEDS_EXTENDED].create(
@@ -70,7 +69,6 @@ class Datastore:
                 },
                 pk=XML_URL,
                 foreign_keys=[(XML_URL, FEEDS, XML_URL)],
-                # not_null={"xmlUrl"},
             )
             self.db[FEEDS_EXTENDED].enable_fts(
                 [TITLE, DESCRIPTION],
@@ -94,7 +92,6 @@ class Datastore:
                 },
                 pk="overcastId",
                 foreign_keys=[(OVERCAST_ID, FEEDS, OVERCAST_ID)],
-                # not_null={"overcastId", "feedId", "title", "enclosureUrl"},
             )
         if EPISODES_EXTENDED not in self.db.table_names():
             self.db[EPISODES_EXTENDED].create(
@@ -110,7 +107,6 @@ class Datastore:
                     (ENCLOSURE_URL, EPISODES, ENCLOSURE_URL),
                     (FEED_XML_URL, FEEDS_EXTENDED, XML_URL),
                 ],
-                # not_null={"enclosureUrl"},
             )
             self.db[EPISODES_EXTENDED].enable_fts(
                 ["title", "description"],
@@ -198,7 +194,7 @@ class Datastore:
         stored_feed_ids = {x[0] for x in stored_feed_ids}
         deleted_ids = stored_feed_ids - ingested_feed_ids
 
-        now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
         for feed_id in deleted_ids:
             self.db[FEEDS].update(feed_id, {"dateRemoveDetected": now})
 
@@ -245,6 +241,7 @@ class Datastore:
 
     def transcripts_to_download(
         self,
+        *,
         starred_only: bool,
     ) -> Iterable[tuple[str, str, str, str, str]]:
         """Find episodes with transcripts to download.

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
@@ -63,12 +63,13 @@ def fetch_xml_and_extract(
     xml_url: str,
     title: str,
     archive_dir: Path | None,
+    *,
     verbose: bool,
     headers: dict,
 ) -> tuple[dict, list[dict]]:
     """Fetch XML feed and extract all feed and episode tags and attributes."""
     response = requests.get(xml_url, headers=headers)
-    now = datetime.now(tz=timezone.utc).isoformat()
+    now = datetime.now(tz=UTC).isoformat()
     if not response.ok:
         print(f"⛔️ Error {response.status_code} fetching podcast feed {xml_url}")
         if verbose:
