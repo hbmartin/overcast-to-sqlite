@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 packages = ["overcast_to_sqlite"]
 
 [tool.setuptools]
-py-modules = ["overcast_to_sqlite"]
+packages = ["overcast_to_sqlite"]
 
 [project]
 name = "overcast-to-sqlite"
@@ -50,7 +50,7 @@ indent-width = 4
 target-version = "py311"
 
 lint.select = ["ALL"]
-lint.ignore = ["D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "S608", "S113", "S314", "T201"]
+lint.ignore = ["D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "S608", "S113", "S311", "S314", "T201"]
 
 [tool.ruff.lint.per-file-ignores]
 "overcast_to_sqlite/cli.py" = ["FBT001"]
