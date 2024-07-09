@@ -201,7 +201,7 @@ def transcripts(
     total = 0
     current_feed = None
     for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
-        starred_only,
+        starred_only=starred_only,
     ):
         if current_feed != feed_title:
             current_feed = feed_title
