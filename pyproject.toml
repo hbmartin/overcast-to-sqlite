@@ -1,52 +1,55 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "overcast-to-sqlite"
+dynamic = "0.5.0"
+description = "Save listening history and feed/episode info from Overcast to a SQLite database."
+readme = "README.md"
+license = "Apache License, Version 2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Harold Martin", email = "Harold.Martin@gmail.com" },
+]
+keywords = ["datasette", "overcast", "sqlite", "podcasts", "podcast", "transcripts"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Framework :: Datasette",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = ["click", "python-dateutil", "requests", "sqlite-utils"]
+
+[project.optional-dependencies]
+lint = ["pyroma", "pytype", "ruff", "types-python-dateutil", "types-requests", "pytest", "requests-mock"]
+
+[project.scripts]
+overcast-to-sqlite = "overcast_to_sqlite.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/hbmartin/overcast-to-sqlite"
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "setup.py",
-    "site-packages",
-    "venv",
-]
+exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv", ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist", "node_modules", "setup.py", "site-packages", "venv"]
 
 # Same as Black.
 line-length = 88
 indent-width = 4
 
 lint.select = ["ALL"]
-lint.ignore = ["ANN101", "D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "E203", "ERA001", "EXE001", "FBT001", "S113", "S314", "S608", "T201", "UP017"]
-target-version = "py312"
+#lint.ignore = ["ANN101", "D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "E203", "ERA001", "EXE001", "FBT001", "S113", "S314", "S608", "T201", "UP017"]
+target-version = "py311"
 
 [tool.ruff.format]
-# Like Black, use double quotes for strings.
+# Same as Black.
 quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-
-# Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
-
-# Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
