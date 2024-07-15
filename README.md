@@ -98,9 +98,9 @@ There is also a `-s` flag to only download transcripts for starred episodes.
 ## See also
 
 - [Datasette](https://datasette.io/)
-- [sqlite-utils](https://sqlite-utils.datasette.io/en/stable/)
-- [Podcast-Transcript-Tools](https://github.com/hbmartin/podcast-transcript-tools/)
-- [Overcast-Parser](https://github.com/hbmartin/overcast_parser)
+- [Podcast Transcript Convert](https://github.com/hbmartin/podcast-transcript-convert/)
+- [Overcast Parser](https://github.com/hbmartin/overcast_parser)
+- [Podcast Archiver](https://github.com/janw/podcast-archiver)
 
 ## Development
 

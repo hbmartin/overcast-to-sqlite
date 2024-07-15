@@ -16,7 +16,7 @@ _user_agents = [
 
 
 def _headers_ua() -> dict:
-    """Return a random User-Agent header to  avoid RSS and transcript download blocking.
+    """Return a random User-Agent header to avoid RSS and transcript download blocking.
 
     See https://github.com/opawg/user-agents-v2/blob/master/src/apps.json
     """

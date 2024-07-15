@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from pathlib import Path
 
 import click
@@ -8,6 +9,8 @@ from .constants import TITLE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
+    _load_cookies,
+    _session_from_cookie,
     auth_and_save_cookies,
     extract_feed_and_episodes_from_opml,
     extract_playlists_from_opml,
@@ -82,11 +85,15 @@ def save(
     if load:
         xml = Path(load).read_text()
     else:
-        if not Path(auth_path).exists():
-            auth(auth_path)
+        if (cookie := os.getenv("OVERCAST_COOKIE")) is not None:
+            session = _session_from_cookie(cookie)
+        else:
+            if not Path(auth_path).exists():
+                auth(auth_path)
+            session = _load_cookies(auth_path)
         print("🔉Fetching latest OPML from Overcast")
         xml = fetch_opml(
-            auth_path,
+            session,
             None if no_archive else _archive_path(db_path, "overcast"),
         )
 
