@@ -5,6 +5,7 @@ from xml.etree import ElementTree
 
 import requests
 
+from .chapters import extract_chapters
 from .constants import (
     DESCRIPTION,
     ENCLOSURE_URL,
@@ -98,16 +99,18 @@ def fetch_xml_and_extract(
     if (channel := root.find("./channel")) is None:
         raise NoChannelInFeedError
 
-    return _extract_from_feed_xml(channel, now, xml_url)
+    return _extract_from_feed_xml(channel, now, xml_url, headers)
 
 
 def _extract_from_feed_xml(
     channel: ElementTree.Element,
     now: str,
     xml_url: str,
+    headers: dict,
 ) -> tuple[dict, list[dict]]:
     feed_attrs = {XML_URL: xml_url, "lastUpdated": now}
     episodes = []
+    all_chapters = []
     for element in channel:
         if element.tag == "item":
             ep_attrs = {FEED_XML_URL: xml_url}
@@ -116,6 +119,9 @@ def _extract_from_feed_xml(
             if "enclosure:url" in ep_attrs:
                 ep_attrs[ENCLOSURE_URL] = ep_attrs.pop("enclosure:url")
                 episodes.append(ep_attrs)
+            else:
+                print(f"Skipping episode without enclosure URL: {ep_attrs.get(TITLE)}")
+            ep_chapters = extract_chapters(element, headers)
         else:
             feed_attrs.update(_element_to_dict(element))
     feed_attrs[TITLE] = feed_attrs.get(TITLE, "").strip()

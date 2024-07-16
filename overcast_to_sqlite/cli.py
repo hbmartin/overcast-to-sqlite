@@ -9,8 +9,8 @@ from .constants import TITLE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
-    _load_cookies,
     _session_from_cookie,
+    _session_from_json,
     auth_and_save_cookies,
     extract_feed_and_episodes_from_opml,
     extract_playlists_from_opml,
@@ -90,7 +90,7 @@ def save(
         else:
             if not Path(auth_path).exists():
                 auth(auth_path)
-            session = _load_cookies(auth_path)
+            session = _session_from_json(auth_path)
         print("🔉Fetching latest OPML from Overcast")
         xml = fetch_opml(
             session,
