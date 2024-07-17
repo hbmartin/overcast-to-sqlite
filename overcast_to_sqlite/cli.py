@@ -291,6 +291,11 @@ def save_extend_download(
         starred_only=False,
         verbose=verbose,
     )
+    ctx.invoke(
+        chapters,
+        db_path=db_path,
+        archive_path=None,
+    )
 
 
 if __name__ == "__main__":

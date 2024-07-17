@@ -90,8 +90,9 @@ def extract_ep_attrs(
 
     if "enclosure:url" in ep_attrs:
         ep_attrs[ENCLOSURE_URL] = ep_attrs.pop("enclosure:url")
-        ep_chapters = extract_chapters(element)
-        return ep_attrs, ep_chapters
+        # Need to figure out how to extract chapters more cheaply, this is expensive
+        # to perform across all episodes.
+        return ep_attrs, []
 
     print(f"Skipping episode without enclosure URL: {ep_attrs.get(TITLE)}")
     return None
