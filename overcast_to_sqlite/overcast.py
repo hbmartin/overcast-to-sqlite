@@ -48,7 +48,7 @@ def auth_and_save_cookies(email: str, password: str, auth_json: str) -> None:
     auth_json_path.write_text(json.dumps(auth_data, indent=4) + "\n")
 
 
-def _load_cookies(auth_json_path: str) -> Session:
+def _session_from_json(auth_json_path: str) -> Session:
     with Path(auth_json_path).open() as f:
         cookies = json.load(f)["overcast"]
         session = Session()

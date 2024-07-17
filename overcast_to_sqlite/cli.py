@@ -5,12 +5,14 @@ from pathlib import Path
 import click
 import requests
 
+from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
+
 from .constants import TITLE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
-    _load_cookies,
     _session_from_cookie,
+    _session_from_json,
     auth_and_save_cookies,
     extract_feed_and_episodes_from_opml,
     extract_playlists_from_opml,
@@ -90,7 +92,7 @@ def save(
         else:
             if not Path(auth_path).exists():
                 auth(auth_path)
-            session = _load_cookies(auth_path)
+            session = _session_from_json(auth_path)
         print("🔉Fetching latest OPML from Overcast")
         xml = fetch_opml(
             session,
@@ -135,7 +137,7 @@ def extend(
     for f in feeds_to_extend:
         title = _sanitize_for_path(f[0])
         url = f[1]
-        feed, episodes = fetch_xml_and_extract(
+        feed, episodes, chapters = fetch_xml_and_extract(
             xml_url=url,
             title=title,
             archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
@@ -223,6 +225,29 @@ def transcripts(
     print(f"↘️Downloaded {total} transcripts")
 
 
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-p",
+    "--path",
+    "archive_path",
+    type=click.Path(file_okay=False, dir_okay=True, allow_dash=False),
+)
+def chapters(
+    db_path: str,
+    archive_path: str | None,
+) -> None:
+    """Download and store available chapters for all or starred episodes."""
+    archive_root = (
+        Path(archive_path) if archive_path else Path(db_path).parent / "archive"
+    )
+    backfill_all_chapters(db_path, archive_root)
+
+
 @cli.command("all")
 @click.pass_context
 @click.argument(
@@ -265,6 +290,11 @@ def save_extend_download(
         archive_path=None,
         starred_only=False,
         verbose=verbose,
+    )
+    ctx.invoke(
+        chapters,
+        db_path=db_path,
+        archive_path=None,
     )
 
 
