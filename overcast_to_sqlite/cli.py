@@ -6,6 +6,7 @@ import click
 import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
+
 from .constants import TITLE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
@@ -222,6 +223,7 @@ def transcripts(
             )
             total += 1
     print(f"↘️Downloaded {total} transcripts")
+
 
 @cli.command()
 @click.argument(

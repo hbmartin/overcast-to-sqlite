@@ -11,7 +11,7 @@ from overcast_to_sqlite.chapters.extractors import (
 from overcast_to_sqlite.constants import CHAPTERS, FEEDS
 from overcast_to_sqlite.datastore import Datastore
 from overcast_to_sqlite.more_itertools import chunked
-from overcast_to_sqlite.utils import _archive_path, _headers_ua, _sanitize_for_path
+from overcast_to_sqlite.utils import _headers_ua, _sanitize_for_path
 
 BATCH_SIZE = (cpu_count() if cpu_count() is not None else 6) * 2
 
