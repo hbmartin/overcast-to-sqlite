@@ -55,7 +55,7 @@ def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
 
 
 def extract_chapters(
-    root: ElementTree,
+    root: ElementTree.Element,
     *,
     fetch_pci: bool = False,
 ) -> list[Chapter]:
@@ -72,8 +72,10 @@ def extract_chapters(
     if (psc_chapters := root.find(f"./{PSC}chapters")) is not None:
         if (chaps := extract_psc_chapters(psc_chapters)) is not None:
             chapters.extend(chaps)
-    if (description := root.find("./description")) is not None:
-        if (chaps := extract_description_chapters(description.text)) is not None:
+    if (description := root.find("./description")) is not None and (
+        desc_text := description.text
+    ) is not None:
+        if (chaps := extract_description_chapters(desc_text)) is not None:
             chapters.extend(chaps)
     return chapters
 

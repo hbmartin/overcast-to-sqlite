@@ -54,7 +54,7 @@ def get_and_extract_pci_chapters(
     headers: dict,
     archive_path_json: Path | None,
 ) -> None | list[Chapter]:
-    if archive_path_json.exists():
+    if archive_path_json is not None and archive_path_json.exists():
         chapters_json = json.loads(archive_path_json.read_text())
     else:
         response = requests.get(url, headers=headers)
