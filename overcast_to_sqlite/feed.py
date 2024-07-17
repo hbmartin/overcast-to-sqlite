@@ -1,63 +1,17 @@
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 from xml.etree import ElementTree
 
 import requests
 
-from .chapters import extract_chapters
+from .chapters.entities import Chapter
 from .constants import (
     DESCRIPTION,
-    ENCLOSURE_URL,
-    FEED_XML_URL,
     TITLE,
     XML_URL,
 )
+from .episode import _element_to_dict, extract_ep_attrs
 from .exceptions import NoChannelInFeedError
-from .utils import _parse_date_or_none
-
-
-def _element_to_dict(element: ElementTree.Element) -> dict[str, Any]:
-    element_dict = {}
-    tag = (
-        element.tag.replace("{http://www.itunes.com/dtds/podcast-1.0.dtd}", "itunes:")
-        .replace("{https://podcastindex.org/namespace/1.0}", "podcast:")
-        .replace(
-            "{https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md}",
-            "podcast:",
-        )
-        .replace("{http://a9.com/-/spec/opensearchrss/1.0/}", "openSearch:")
-        .replace("{http://fireside.fm/modules/rss/fireside}", "fireside:")
-        .replace("{http://podlove.org/simple-chapters}", "psc:")
-        .replace("{http://purl.org/dc/elements/1.1/}", "dc:")
-        .replace("{http://purl.org/rss/1.0/modules/content/}", "content:")
-        .replace("{http://purl.org/rss/1.0/modules/slash/}", "slash:")
-        .replace("{http://purl.org/rss/1.0/modules/syndication/}", "sy:")
-        .replace("{http://search.yahoo.com/mrss/}", "media:")
-        .replace("{http://web.resource.org/cc/}", "cc:")
-        .replace("{http://www.georss.org/georss}", "georss:")
-        .replace("{http://www.google.com/schemas/play-podcasts/1.0}", "googleplay:")
-        .replace("{http://www.rawvoice.com/rawvoiceRssModule/}", "rawvoice:")
-        .replace("{http://www.rssboard.org/media-rss}", "rssboard:")
-        .replace("{http://www.spotify.com/ns/rss}", "spotify:")
-        .replace("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}", "rdf:")
-        .replace("{http://www.w3.org/2003/01/geo/wgs84_pos#}", "geo:")
-        .replace("{http://www.w3.org/2005/Atom}", "atom:")
-        .replace("{https://feed.press/xmlns}", "feedpress:")
-        .replace("{https://omny.fm/rss-extensions}", "omny:")
-        .replace("{https://schema.acast.com/1.0/}", "acast:")
-        .replace("{http://wellformedweb.org/CommentAPI/}", "wfw:")
-        .replace("{https://w3id.org/rp/v1}", "radiopublic:")
-    )
-    if element.text and not element.text.isspace():
-        if "date" in tag.lower():
-            element_dict[tag] = _parse_date_or_none(element.text) or element.text
-        else:
-            element_dict[tag] = element.text
-    for attr in element.attrib:
-        element_dict[f"{tag}:{attr}"] = element.attrib[attr]
-
-    return element_dict
 
 
 def fetch_xml_and_extract(
@@ -67,7 +21,7 @@ def fetch_xml_and_extract(
     *,
     verbose: bool,
     headers: dict,
-) -> tuple[dict, list[dict]]:
+) -> tuple[dict, list[dict], list[Chapter]]:
     """Fetch XML feed and extract all feed and episode tags and attributes."""
     response = requests.get(xml_url, headers=headers)
     now = datetime.now(tz=UTC).isoformat()
@@ -75,10 +29,14 @@ def fetch_xml_and_extract(
         print(f"⛔️ Error {response.status_code} fetching podcast feed {xml_url}")
         if verbose:
             print(response.headers)
-        return {
-            XML_URL: xml_url,
-            "errorCode": response.status_code,
-        }, []
+        return (
+            {
+                XML_URL: xml_url,
+                "errorCode": response.status_code,
+            },
+            [],
+            [],
+        )
 
     xml_string = response.text
     if archive_dir:
@@ -90,41 +48,39 @@ def fetch_xml_and_extract(
         root = ElementTree.fromstring(xml_string)
     except ElementTree.ParseError:
         print(f"Failed to parse podcast feed {xml_url}.\n{response.headers}")
-        return {
-            XML_URL: xml_url,
-            "lastUpdated": now,
-            "errorCode": -1,
-        }, []
+        return (
+            {
+                XML_URL: xml_url,
+                "lastUpdated": now,
+                "errorCode": -1,
+            },
+            [],
+            [],
+        )
 
     if (channel := root.find("./channel")) is None:
         raise NoChannelInFeedError
 
-    return _extract_from_feed_xml(channel, now, xml_url, headers)
+    return _extract_from_feed_xml(channel, now, xml_url)
 
 
 def _extract_from_feed_xml(
     channel: ElementTree.Element,
     now: str,
     xml_url: str,
-    headers: dict,
-) -> tuple[dict, list[dict]]:
+) -> tuple[dict, list[dict], list[Chapter]]:
     feed_attrs = {XML_URL: xml_url, "lastUpdated": now}
     episodes = []
     all_chapters = []
     for element in channel:
         if element.tag == "item":
-            ep_attrs = {FEED_XML_URL: xml_url}
-            for ep_el in element:
-                ep_attrs.update(_element_to_dict(ep_el))
-            if "enclosure:url" in ep_attrs:
-                ep_attrs[ENCLOSURE_URL] = ep_attrs.pop("enclosure:url")
+            if (ep_info := extract_ep_attrs(xml_url, element)) is not None:
+                ep_attrs, ep_chapters = ep_info
                 episodes.append(ep_attrs)
-            else:
-                print(f"Skipping episode without enclosure URL: {ep_attrs.get(TITLE)}")
-            ep_chapters = extract_chapters(element, headers)
+                all_chapters.extend(ep_chapters)
         else:
             feed_attrs.update(_element_to_dict(element))
     feed_attrs[TITLE] = feed_attrs.get(TITLE, "").strip()
     feed_attrs[DESCRIPTION] = feed_attrs.get(DESCRIPTION, "").strip()
 
-    return feed_attrs, episodes
+    return feed_attrs, episodes, all_chapters

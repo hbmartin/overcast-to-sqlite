@@ -54,6 +54,8 @@ lint.ignore = ["D100", "D101", "D103", "D104", "D105", "D107", "D203", "D213", "
 
 [tool.ruff.lint.per-file-ignores]
 "overcast_to_sqlite/cli.py" = ["FBT001"]
+"overcast_to_sqlite/more_itertools.py" = ["RET505", "EM101", "TRY003", "ANN202", "D415", "D400", "ANN001", "FBT002", "ANN201"]
+"overcast_to_sqlite/episode.py" = ["SIM102"]
 
 [tool.ruff.format]
 # Same as Black.

@@ -327,7 +327,7 @@ class Datastore:
         )
         self.db.conn.commit()
 
-    def get_description_no_chapters(self) -> list[str]:
+    def get_description_no_chapters(self) -> Iterable[tuple[str, str, str]]:
         """Find episodes with no chapters."""
         yield from self.db.execute(
             f"SELECT {EPISODES_EXTENDED}.{ENCLOSURE_URL}, {EPISODES_EXTENDED}.{GUID}, "
@@ -339,15 +339,30 @@ class Datastore:
             f"AND {DESCRIPTION} IS NOT NULL;",
         )
 
-    def get_description_no_pci_chapters(self) -> list[str]:
+    def get_no_pci_chapters(self) -> Iterable[tuple[str, str, str, str]]:
         """Find episodes with no PCI type chapters."""
         yield from self.db.execute(
             f"SELECT {EPISODES_EXTENDED}.{ENCLOSURE_URL}, {EPISODES_EXTENDED}.{GUID}, "
-            '"podcast:chapters:url"'
+            f'{EPISODES_EXTENDED}.{TITLE}, "podcast:chapters:url"'
             f"FROM {EPISODES_EXTENDED} "
             f"LEFT JOIN {CHAPTERS} "
             f"ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {CHAPTERS}.{ENCLOSURE_URL} "
             f"WHERE {CHAPTERS}.{ENCLOSURE_URL} IS NULL "
             'AND "podcast:chapters:url" IS NOT NULL '
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'pci');",
+        )
+
+    def get_no_psc_chapters(self) -> Iterable[tuple[str, str, str]]:
+        """Find episodes with no PCI type chapters."""
+        yield from self.db.execute(
+            f"SELECT {EPISODES_EXTENDED}.{ENCLOSURE_URL}, {EPISODES_EXTENDED}.{GUID}, "
+            f"{FEEDS_EXTENDED}.{TITLE} "
+            f"FROM {EPISODES_EXTENDED} "
+            f"LEFT JOIN {CHAPTERS} "
+            f"ON {EPISODES_EXTENDED}.{ENCLOSURE_URL} = {CHAPTERS}.{ENCLOSURE_URL} "
+            f"LEFT JOIN {FEEDS_EXTENDED} "
+            f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+            f"WHERE {CHAPTERS}.{ENCLOSURE_URL} IS NULL "
+            'AND "psc:chapters:version" IS NOT NULL '
+            f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )

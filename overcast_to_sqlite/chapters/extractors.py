@@ -1,3 +1,4 @@
+import json
 from contextlib import suppress
 from pathlib import Path
 from xml.etree import ElementTree
@@ -5,6 +6,7 @@ from xml.etree import ElementTree
 import requests
 
 from .entities import (
+    PSC,
     Chapter,
     _description_chapter,
     _re_url,
@@ -50,33 +52,68 @@ def _extract_desc_ts_and_title(ts_title: tuple[str, str]) -> Chapter:
 def get_and_extract_pci_chapters(
     url: str,
     headers: dict,
-    archive: Path | None,
+    archive_path_json: Path | None,
 ) -> None | list[Chapter]:
-    response = requests.get(url, headers=headers)
-    if not response.ok:
-        print(f"⛔️ Error {response.status_code} fetching chapters {url}")
-        return None
-    if archive:
-        archive.mkdir(parents=True, exist_ok=True)
-        # TODO: fix this path
-        archive.joinpath(f"{url.split('/')[-1]}.json").write_text(response.text)
+    if archive_path_json.exists():
+        chapters_json = json.loads(archive_path_json.read_text())
+    else:
+        response = requests.get(url, headers=headers)
+        if not response.ok:
+            print(f"⛔️ Error {response.status_code} fetching chapters {url}")
+            return None
+        chapters_json = response.json()
+        if archive_path_json:
+            archive_path_json.write_text(json.dumps(chapters_json))
 
     try:
         return [
             (int(c["startTime"]), c["title"], c.get("url"), c.get("img"))
-            for c in response.json()["chapters"]
+            for c in chapters_json["chapters"]
         ]
-    except (KeyError, ValueError):
-        print(f"Failed to extract PCI {url}\n{response.text}")
+    except (KeyError, ValueError, TypeError):
+        print(f"Failed to extract PCI for {url} @ {archive_path_json}")
         return None
 
 
+def extract_psc_chapters_from_file(feed_file: Path, guid: str) -> None | list[Chapter]:
+    if not feed_file.exists():
+        print(f"⛔️ File not found {feed_file}")
+        return None
+
+    try:
+        root = ElementTree.fromstring(feed_file.read_text())
+    except ElementTree.ParseError:
+        print(f"Failed to parse podcast feed {feed_file}.")
+        return None
+
+    if (channel := root.find("./channel")) is None:
+        print(f"Failed to find channel podcast feed {feed_file}.")
+        return None
+
+    for element in channel:
+        if element.tag == "item":
+            found_guid = element.find("guid")
+            if found_guid is not None and found_guid.text == guid:
+                if (psc_chapters := element.find(f"./{PSC}chapters")) is not None:
+                    return extract_psc_chapters(psc_chapters)
+
+                print(
+                    f"Failed PSC chapters for episode {guid} in {feed_file}",
+                )
+                return None
+    return None
+
+
 def extract_psc_chapters(psc_chapters: ElementTree.Element) -> None | list[Chapter]:
+    """Extract PSC chapters from XML.
+
+    psc_chapters: ElementTree.Element is the element <psc:chapters>.
+    """
     try:
         return [
             (_ts_to_secs(c.attrib["start"]), c.attrib["title"], None, None)
             for c in psc_chapters
         ]
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, TypeError):
         print(f"Failed to extract PSC chapters {psc_chapters}")
         return None

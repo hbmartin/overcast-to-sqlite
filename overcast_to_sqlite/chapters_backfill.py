@@ -1,10 +1,19 @@
-from overcast_to_sqlite.chapters import (
-    ChapterType,
+from concurrent.futures import ThreadPoolExecutor
+from os import cpu_count
+from pathlib import Path
+
+from overcast_to_sqlite.chapters.entities import ChapterType
+from overcast_to_sqlite.chapters.extractors import (
     extract_description_chapters,
+    extract_psc_chapters_from_file,
     get_and_extract_pci_chapters,
 )
+from overcast_to_sqlite.constants import CHAPTERS, FEEDS
 from overcast_to_sqlite.datastore import Datastore
-from overcast_to_sqlite.utils import _headers_ua
+from overcast_to_sqlite.more_itertools import chunked
+from overcast_to_sqlite.utils import _archive_path, _headers_ua, _sanitize_for_path
+
+BATCH_SIZE = (cpu_count() if cpu_count() is not None else 6) * 2
 
 
 def backfill_chapters_description(db: Datastore) -> None:
@@ -23,26 +32,59 @@ def backfill_chapters_description(db: Datastore) -> None:
     db.insert_chapters(to_insert)
 
 
-def backfill_chapters_pci(db: Datastore) -> None:
+def backfill_chapters_pci(db: Datastore, chapters_path: Path) -> None:
+    candidates = 0
+    found = 0
+    chapters_path.mkdir(parents=True, exist_ok=True)
+
+    def _get_and_extract(
+        podcast: tuple[str, str, str, str],
+    ) -> None | list[tuple[str, str, str, int, str, str | None, str | None]]:
+        enc_url, guid, title, chap_url = podcast
+        extracted = get_and_extract_pci_chapters(
+            url=chap_url,
+            headers=_headers_ua(),
+            archive_path_json=chapters_path / f"{_sanitize_for_path(title)}.json",
+        )
+        if extracted is not None:
+            return [(enc_url, guid, ChapterType.PCI.value, *c) for c in extracted]
+        return None
+
+    no_pci_chapters = list(db.get_no_pci_chapters())
+    chunks = chunked(no_pci_chapters, BATCH_SIZE)
+    for batch in chunks:
+        print(f"Processing batch of {len(batch)}")
+        with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+            to_insert = []
+            for result in executor.map(_get_and_extract, batch):
+                candidates += 1
+                if result is not None:
+                    to_insert.extend(result)
+                    found += 1
+            db.insert_chapters(to_insert)
+
+    print(f"Found {found} podcasts in {candidates} candidates")
+
+
+def backfill_chapters_psc(db: Datastore, feeds_root: Path) -> None:
     candidates = 0
     found = 0
     to_insert = []
 
-    for url, guid, chap_url in db.get_description_no_pci_chapters():
-        print(f"Checking {url} => {chap_url}")
-        # TODO: parallelize this and save chapters to archive
+    for url, guid, feed_title in db.get_no_psc_chapters():
         candidates += 1
-        if (
-            chapters := get_and_extract_pci_chapters(chap_url, _headers_ua())
-        ) is not None:
+        feed_file = feeds_root / f"{_sanitize_for_path(feed_title)}.xml"
+        if (chapters := extract_psc_chapters_from_file(feed_file, guid)) is not None:
             found += 1
             to_insert.extend(
-                [(url, guid, ChapterType.PCI.value, *c) for c in chapters],
+                [(url, guid, ChapterType.PSC.value, *c) for c in chapters],
             )
     print(f"Found {found} chapters in {candidates} candidates")
     db.insert_chapters(to_insert)
 
 
-if __name__ == "__main__":
-    db = Datastore("overcast.db")
-    backfill_chapters_pci(db)
+def backfill_all_chapters(db_path: str, archive_root: Path) -> None:
+    db = Datastore(db_path)
+    backfill_chapters_description(db)
+    backfill_chapters_pci(db, archive_root / CHAPTERS)
+    backfill_chapters_psc(db, archive_root / FEEDS)
