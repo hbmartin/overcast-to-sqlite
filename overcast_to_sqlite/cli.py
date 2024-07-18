@@ -153,14 +153,17 @@ def extend(
                 db,
                 archive_dir,
                 feed_title,
-                no_archive,
                 url,
                 verbose,
             )
 
 
 def _fetch_feed_extend_save(
-    db: Datastore, archive_dir: Path, feed_title: str, url: str, verbose: bool,
+    db: Datastore,
+    archive_dir: Path | None,
+    feed_title: str,
+    url: str,
+    verbose: bool,
 ) -> None:
     title = _sanitize_for_path(feed_title)
     feed, episodes, chapters = fetch_xml_and_extract(
