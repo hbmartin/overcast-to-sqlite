@@ -41,8 +41,6 @@ def fetch_xml_and_extract(
     xml_string = response.text
     if archive_dir:
         archive_dir.mkdir(parents=True, exist_ok=True)
-        if verbose:
-            print(f"Saving feed XML to {archive_dir}/{title}.xml")
         archive_dir.joinpath(f"{title}.xml").write_text(xml_string)
     try:
         root = ElementTree.fromstring(xml_string)

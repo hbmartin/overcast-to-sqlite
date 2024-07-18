@@ -1,3 +1,5 @@
+from os import cpu_count
+
 CHAPTERS = "chapters"
 CONTENT = "content"
 DESCRIPTION = "description"
@@ -31,3 +33,6 @@ URL = "url"
 USER_REC_DATE = "userRecommendedDate"
 USER_UPDATED_DATE = "userUpdatedDate"
 XML_URL = "xmlUrl"
+
+_CPU_COUNT = cpu_count() or 6
+BATCH_SIZE = _CPU_COUNT * 2

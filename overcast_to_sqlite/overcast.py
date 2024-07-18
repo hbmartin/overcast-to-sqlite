@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree
+from xml.etree.ElementTree import Element
 
 from requests import Session
 
@@ -84,8 +84,7 @@ def _iso_date_or_none(dictionary: dict, key: str) -> str | None:
     return None
 
 
-def extract_playlists_from_opml(xml_string: str) -> Iterable[dict]:
-    root = ElementTree.fromstring(xml_string)
+def extract_playlists_from_opml(root: Element) -> Iterable[dict]:
     for playlist in root.findall(
         "./body/outline[@text='playlists']/outline[@type='podcast-playlist']",
     ):
@@ -99,9 +98,8 @@ def extract_playlists_from_opml(xml_string: str) -> Iterable[dict]:
 
 
 def extract_feed_and_episodes_from_opml(
-    xml_string: str,
+    root: Element,
 ) -> Iterable[tuple[dict, list[dict]]]:
-    root = ElementTree.fromstring(xml_string)
     for feed in root.findall("./body/outline[@text='feeds']/outline[@type='rss']"):
         episodes = []
         feed_attrs: dict[str, Any] = feed.attrib.copy()
