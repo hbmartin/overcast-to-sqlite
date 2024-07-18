@@ -224,7 +224,7 @@ class Datastore:
         for feed_id in deleted_ids:
             self.db[FEEDS].update(feed_id, {"dateRemoveDetected": now})
 
-    def get_feeds_to_extend(self) -> list[str]:
+    def get_feeds_to_extend(self) -> list[tuple[str, str]]:
         """Find feeds with episodes not represented in episodes_extended."""
         return self.db.execute(
             f"SELECT {FEEDS}.{TITLE}, {FEEDS}.{XML_URL} "

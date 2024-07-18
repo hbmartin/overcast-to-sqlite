@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from xml.etree import ElementTree
 
 import click
 import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
 
-from .constants import TITLE
+from .constants import TITLE, BATCH_SIZE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
@@ -87,23 +89,22 @@ def save(
     if load:
         xml = Path(load).read_text()
     else:
-        if (cookie := os.getenv("OVERCAST_COOKIE")) is not None:
-            session = _session_from_cookie(cookie)
-        else:
-            if not Path(auth_path).exists():
-                auth(auth_path)
-            session = _session_from_json(auth_path)
         print("🔉Fetching latest OPML from Overcast")
-        xml = fetch_opml(
-            session,
+        xml = _auth_and_fetch(
+            auth_path,
             None if no_archive else _archive_path(db_path, "overcast"),
         )
 
-    for playlist in extract_playlists_from_opml(xml):
+    if verbose:
+        print("📥Parsing OPML...")
+    root = ElementTree.fromstring(xml)
+
+    for playlist in extract_playlists_from_opml(root):
         if verbose:
             print(f"▶️Saving playlist: {playlist['title']}")
         db.save_playlist(playlist)
-    for feed, episodes in extract_feed_and_episodes_from_opml(xml):
+
+    for feed, episodes in extract_feed_and_episodes_from_opml(root):
         if len(episodes) == 0:
             if verbose:
                 print(f"⚠️Skipping {feed[TITLE]} (no episodes)")
@@ -114,6 +115,16 @@ def save(
         db.save_feed_and_episodes(feed, episodes)
 
     db.mark_feed_removed_if_missing(ingested_feed_ids)
+
+
+def _auth_and_fetch(auth_path: str, archive: Path | None) -> str:
+    if (cookie := os.getenv("OVERCAST_COOKIE")) is not None:
+        session = _session_from_cookie(cookie)
+    else:
+        if not Path(auth_path).exists():
+            auth(auth_path)
+        session = _session_from_json(auth_path)
+    return fetch_opml(session, archive)
 
 
 @cli.command()
@@ -134,20 +145,32 @@ def extend(
     feeds_to_extend = db.get_feeds_to_extend()
     print(f"➡️Extending {len(feeds_to_extend)} feeds")
 
-    for f in feeds_to_extend:
-        title = _sanitize_for_path(f[0])
-        url = f[1]
-        feed, episodes, chapters = fetch_xml_and_extract(
-            xml_url=url,
-            title=title,
-            archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
-            verbose=verbose,
-            headers=_headers_ua(),
-        )
-        if len(episodes) == 0:
-            if verbose:
-                print(f"⚠️Skipping {title} (no episodes)")
-            continue
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+        for feed_title, url in feeds_to_extend:
+            executor.submit(
+                _fetch_feed_extend_save,
+                db,
+                db_path,
+                feed_title,
+                no_archive,
+                url,
+                verbose,
+            )
+
+
+def _fetch_feed_extend_save(db, db_path, feed_title, no_archive, url, verbose):
+    title = _sanitize_for_path(feed_title)
+    feed, episodes, chapters = fetch_xml_and_extract(
+        xml_url=url,
+        title=title,
+        archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
+        verbose=verbose,
+        headers=_headers_ua(),
+    )
+    if len(episodes) == 0:
+        if verbose:
+            print(f"⚠️Skipping {title} (no episodes)")
+    else:
         if verbose:
             print(f"⏩️Extending {title} (latest: {episodes[0][TITLE]})")
         if "errorCode" in feed:

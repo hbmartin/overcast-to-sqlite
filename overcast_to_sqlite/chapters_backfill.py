@@ -8,12 +8,10 @@ from overcast_to_sqlite.chapters.extractors import (
     extract_psc_chapters_from_file,
     get_and_extract_pci_chapters,
 )
-from overcast_to_sqlite.constants import CHAPTERS, FEEDS
+from overcast_to_sqlite.constants import CHAPTERS, FEEDS, BATCH_SIZE
 from overcast_to_sqlite.datastore import Datastore
 from overcast_to_sqlite.more_itertools import chunked
 from overcast_to_sqlite.utils import _headers_ua, _sanitize_for_path
-
-BATCH_SIZE = (cpu_count() if cpu_count() is not None else 6) * 2
 
 
 def backfill_chapters_description(db: Datastore) -> None:
@@ -28,7 +26,8 @@ def backfill_chapters_description(db: Datastore) -> None:
             to_insert.extend(
                 [(url, guid, ChapterType.DESCRIPTION.value, *c) for c in chapters],
             )
-    print(f"Found {found} chapters in {candidates} candidates")
+    if found > 0:
+        print(f"Description chapters: {found} podcasts in {candidates} candidates")
     db.insert_chapters(to_insert)
 
 
@@ -53,7 +52,6 @@ def backfill_chapters_pci(db: Datastore, chapters_path: Path) -> None:
     no_pci_chapters = list(db.get_no_pci_chapters())
     chunks = chunked(no_pci_chapters, BATCH_SIZE)
     for batch in chunks:
-        print(f"Processing batch of {len(batch)}")
         with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
             to_insert = []
             for result in executor.map(_get_and_extract, batch):
@@ -62,8 +60,8 @@ def backfill_chapters_pci(db: Datastore, chapters_path: Path) -> None:
                     to_insert.extend(result)
                     found += 1
             db.insert_chapters(to_insert)
-
-    print(f"Found {found} podcasts in {candidates} candidates")
+    if found > 0:
+        print(f"PCI chapters: {found} podcasts in {candidates} candidates")
 
 
 def backfill_chapters_psc(db: Datastore, feeds_root: Path) -> None:
@@ -79,7 +77,8 @@ def backfill_chapters_psc(db: Datastore, feeds_root: Path) -> None:
             to_insert.extend(
                 [(url, guid, ChapterType.PSC.value, *c) for c in chapters],
             )
-    print(f"Found {found} chapters in {candidates} candidates")
+    if found > 0:
+        print(f"PSC: {found} chapters in {candidates} candidates")
     db.insert_chapters(to_insert)
 
 
