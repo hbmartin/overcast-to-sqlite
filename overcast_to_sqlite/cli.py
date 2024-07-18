@@ -9,7 +9,7 @@ import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
 
-from .constants import TITLE, BATCH_SIZE
+from .constants import BATCH_SIZE, TITLE
 from .datastore import Datastore
 from .feed import fetch_xml_and_extract
 from .overcast import (
@@ -145,12 +145,13 @@ def extend(
     feeds_to_extend = db.get_feeds_to_extend()
     print(f"➡️Extending {len(feeds_to_extend)} feeds")
 
+    archive_dir = None if no_archive else _archive_path(db_path, "feeds")
     with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
         for feed_title, url in feeds_to_extend:
             executor.submit(
                 _fetch_feed_extend_save,
                 db,
-                db_path,
+                archive_dir,
                 feed_title,
                 no_archive,
                 url,
@@ -158,12 +159,14 @@ def extend(
             )
 
 
-def _fetch_feed_extend_save(db, db_path, feed_title, no_archive, url, verbose):
+def _fetch_feed_extend_save(
+    db: Datastore, archive_dir: Path, feed_title: str, url: str, verbose: bool,
+) -> None:
     title = _sanitize_for_path(feed_title)
     feed, episodes, chapters = fetch_xml_and_extract(
         xml_url=url,
         title=title,
-        archive_dir=None if no_archive else _archive_path(db_path, "feeds"),
+        archive_dir=archive_dir,
         verbose=verbose,
         headers=_headers_ua(),
     )
@@ -212,15 +215,9 @@ def transcripts(
     if db.ensure_transcript_columns():
         print("⚠️No transcript URLs found in database, please run `extend`")
 
-    total = 0
-    current_feed = None
     for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
         starred_only=starred_only,
     ):
-        if current_feed != feed_title:
-            current_feed = feed_title
-            if verbose:
-                print(f"🔽️Downloading transcripts for feed {feed_title}")
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")
         try:
@@ -244,8 +241,6 @@ def transcripts(
                 enclosure,
                 str(file_path.absolute()),
             )
-            total += 1
-    print(f"↘️Downloaded {total} transcripts")
 
 
 @cli.command()

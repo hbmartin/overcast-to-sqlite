@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor
-from os import cpu_count
 from pathlib import Path
 
 from overcast_to_sqlite.chapters.entities import ChapterType
@@ -8,7 +7,7 @@ from overcast_to_sqlite.chapters.extractors import (
     extract_psc_chapters_from_file,
     get_and_extract_pci_chapters,
 )
-from overcast_to_sqlite.constants import CHAPTERS, FEEDS, BATCH_SIZE
+from overcast_to_sqlite.constants import BATCH_SIZE, CHAPTERS, FEEDS
 from overcast_to_sqlite.datastore import Datastore
 from overcast_to_sqlite.more_itertools import chunked
 from overcast_to_sqlite.utils import _headers_ua, _sanitize_for_path
