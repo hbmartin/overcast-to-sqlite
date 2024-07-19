@@ -218,32 +218,63 @@ def transcripts(
     if db.ensure_transcript_columns():
         print("⚠️No transcript URLs found in database, please run `extend`")
 
-    for title, url, mimetype, enclosure, feed_title in db.transcripts_to_download(
-        starred_only=starred_only,
-    ):
-        if verbose:
-            print(f"⬇️Downloading {title} @ {url}")
-        try:
-            response = requests.get(url, headers=_headers_ua())
-        except requests.exceptions.RequestException as e:
-            print(f"⛔ Error downloading {url}: {e}")
-            continue
-        if not response.ok:
-            print(f"⛔ Error code {response.status_code} downloading {url}")
-            if verbose:
-                print(response.headers)
-                print(response.text)
-            continue
-        feed_path = transcripts_path / _sanitize_for_path(feed_title)
-        feed_path.mkdir(exist_ok=True)
-        file_ext = _file_extension_for_type(response.headers, mimetype)
-        file_path = feed_path / (_sanitize_for_path(title) + file_ext)
-        with file_path.open(mode="wb") as file:
-            file.write(response.content)
-            db.update_transcript_download_paths(
+    transcripts_to_download = list(
+        db.transcripts_to_download(starred_only=starred_only),
+    )
+
+    if verbose:
+        print(f"🔉Downloading {len(transcripts_to_download)} transcripts...")
+
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+        for title, url, mimetype, enclosure, feed_title in transcripts_to_download:
+            executor.submit(
+                _fetch_and_write_transcript,
+                db,
+                title,
+                url,
+                mimetype,
                 enclosure,
-                str(file_path.absolute()),
+                feed_title,
+                transcripts_path,
+                verbose,
             )
+
+
+def _fetch_and_write_transcript(  # noqa: PLR0913
+    db: Datastore,
+    title: str,
+    url: str,
+    mimetype: str,
+    enclosure: str,
+    feed_title: str,
+    transcripts_path: Path,
+    verbose: bool,
+) -> None:
+    if verbose:
+        print(f"⬇️Downloading {title} @ {url}")
+    try:
+        response = requests.get(url, headers=_headers_ua())
+    except requests.exceptions.RequestException as e:
+        print(f"⛔ Error downloading {url}: {e}")
+        return
+
+    if not response.ok:
+        print(f"⛔ Error code {response.status_code} downloading {url}")
+        if verbose:
+            print(response.headers)
+        return
+    feed_path = transcripts_path / _sanitize_for_path(feed_title)
+    feed_path.mkdir(exist_ok=True)
+    file_ext = _file_extension_for_type(response.headers, mimetype)
+    file_path = feed_path / (_sanitize_for_path(title) + file_ext)
+    if verbose:
+        print(f"📝Saving {file_path}")
+    with file_path.open(mode="wb") as file:
+        file.write(response.content)
+        db.update_transcript_download_paths(
+            enclosure,
+            str(file_path.absolute()),
+        )
 
 
 @cli.command()
