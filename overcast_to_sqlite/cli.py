@@ -203,9 +203,7 @@ def transcripts(  # noqa: C901
         Path(archive_path) if archive_path else _archive_path(db_path, "transcripts")
     )
 
-    if not transcripts_path.exists():
-        transcripts_path.mkdir(parents=True)
-        print(f"🗂️Created {transcripts_path}")
+    transcripts_path.mkdir(parents=True, exist_ok=True)
 
     if db.ensure_transcript_columns():
         print("⚠️No transcript URLs found in database, please run `extend`")
@@ -332,7 +330,7 @@ def save_extend_download(
         db_path=db_path,
         archive_path=None,
     )
-
+    # TODO: html
 
 if __name__ == "__main__":
     cli()
