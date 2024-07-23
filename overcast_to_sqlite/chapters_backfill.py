@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from overcast_to_sqlite.chapters.entities import ChapterType
-from overcast_to_sqlite.chapters.extractors import (
+from podcast_chapter_tools.entities import ChapterType
+from podcast_chapter_tools.extractors import (
     extract_description_chapters,
     extract_psc_chapters_from_file,
     get_and_extract_pci_chapters,
