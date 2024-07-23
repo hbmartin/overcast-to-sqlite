@@ -105,7 +105,7 @@ def save(
         db.save_playlist(playlist)
 
     for feed, episodes in extract_feed_and_episodes_from_opml(root):
-        if len(episodes) == 0:
+        if not episodes:
             if verbose:
                 print(f"⚠️Skipping {feed[TITLE]} (no episodes)")
             continue
@@ -157,7 +157,7 @@ def extend(
             verbose=verbose,
             headers=_headers_ua(),
         )
-        if len(episodes) == 0:
+        if not episodes:
             if verbose:
                 print(f"⚠️Skipping {title} (no episodes)")
         else:
@@ -167,7 +167,6 @@ def extend(
                 print(f"⛔️Found error: {feed['errorCode']}")
         return feed, episodes
 
-    print(feeds_to_extend[0])
     with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
         results = list(executor.map(_fetch_feed_extend_save, feeds_to_extend))
 
