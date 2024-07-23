@@ -147,8 +147,8 @@ def extend(
 
     archive_dir = None if no_archive else _archive_path(db_path, "feeds")
 
-    def _fetch_feed_extend_save(feed: tuple[str, str]) -> tuple[dict, list[dict]]:
-        feed_title, url = feed
+    def _fetch_feed_extend_save(feed_url: tuple[str, str]) -> tuple[dict, list[dict]]:
+        feed_title, url = feed_url
         title = _sanitize_for_path(feed_title)
         feed, episodes, chapters = fetch_xml_and_extract(
             xml_url=url,

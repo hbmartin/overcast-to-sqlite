@@ -31,4 +31,4 @@ jobs:
         options: "--check --verbose"
     - run: pyroma . --min=10
     - run: |
-        python -m overcast_to_sqlite |& grep -q 'Usage:'
+        python -m overcast_to_sqlite.cli |& grep -q 'Usage:'
