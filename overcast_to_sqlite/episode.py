@@ -1,12 +1,13 @@
 from typing import Any
 from xml.etree import ElementTree
 
-from overcast_to_sqlite.chapters.entities import PCI, PSC, Chapter
-from overcast_to_sqlite.chapters.extractors import (
+from podcast_chapter_tools.entities import PCI, PSC, Chapter
+from podcast_chapter_tools.extractors import (
     extract_description_chapters,
     extract_psc_chapters,
     get_and_extract_pci_chapters,
 )
+
 from overcast_to_sqlite.constants import ENCLOSURE_URL, FEED_XML_URL, TITLE
 from overcast_to_sqlite.utils import _headers_ua, _parse_date_or_none
 

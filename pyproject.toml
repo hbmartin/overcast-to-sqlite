@@ -10,7 +10,7 @@ packages = ["overcast_to_sqlite"]
 
 [project]
 name = "overcast-to-sqlite"
-version = "0.5.0"
+version = "0.6.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,7 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Typing :: Typed",
 ]
-dependencies = ["click", "python-dateutil", "requests", "sqlite-utils"]
+dependencies = ["click", "podcast-chapter-tools", "python-dateutil", "requests", "sqlite-utils"]
 
 [project.optional-dependencies]
 lint = ["pyroma", "pytype", "ruff", "types-python-dateutil", "types-requests", "pytest", "requests-mock"]
