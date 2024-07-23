@@ -146,41 +146,34 @@ def extend(
     print(f"➡️Extending {len(feeds_to_extend)} feeds")
 
     archive_dir = None if no_archive else _archive_path(db_path, "feeds")
+
+    def _fetch_feed_extend_save(feed: tuple[str, str]) -> tuple[dict, list[dict]]:
+        feed_title, url = feed
+        title = _sanitize_for_path(feed_title)
+        feed, episodes, chapters = fetch_xml_and_extract(
+            xml_url=url,
+            title=title,
+            archive_dir=archive_dir,
+            verbose=verbose,
+            headers=_headers_ua(),
+        )
+        if len(episodes) == 0:
+            if verbose:
+                print(f"⚠️Skipping {title} (no episodes)")
+        else:
+            if verbose:
+                print(f"⏩️Extending {title} (latest: {episodes[0][TITLE]})")
+            if "errorCode" in feed:
+                print(f"⛔️Found error: {feed['errorCode']}")
+        return feed, episodes
+
+    print(feeds_to_extend[0])
     with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
-        for feed_title, url in feeds_to_extend:
-            executor.submit(
-                _fetch_feed_extend_save,
-                db,
-                archive_dir,
-                feed_title,
-                url,
-                verbose,
-            )
+        results = list(executor.map(_fetch_feed_extend_save, feeds_to_extend))
 
-
-def _fetch_feed_extend_save(
-    db: Datastore,
-    archive_dir: Path | None,
-    feed_title: str,
-    url: str,
-    verbose: bool,
-) -> None:
-    title = _sanitize_for_path(feed_title)
-    feed, episodes, chapters = fetch_xml_and_extract(
-        xml_url=url,
-        title=title,
-        archive_dir=archive_dir,
-        verbose=verbose,
-        headers=_headers_ua(),
-    )
-    if len(episodes) == 0:
-        if verbose:
-            print(f"⚠️Skipping {title} (no episodes)")
-    else:
-        if verbose:
-            print(f"⏩️Extending {title} (latest: {episodes[0][TITLE]})")
-        if "errorCode" in feed:
-            print(f"⛔️Found error: {feed['errorCode']}")
+    if verbose:
+        print(f"Saving {len(results)} feeds to database")
+    for feed, episodes in results:
         db.save_extended_feed_and_episodes(feed, episodes)
 
 
@@ -198,7 +191,7 @@ def _fetch_feed_extend_save(
 )
 @click.option("-s", "--starred-only", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def transcripts(
+def transcripts(  # noqa: C901
     db_path: str,
     archive_path: str | None,
     starred_only: bool,
@@ -225,56 +218,48 @@ def transcripts(
     if verbose:
         print(f"🔉Downloading {len(transcripts_to_download)} transcripts...")
 
-    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
-        for title, url, mimetype, enclosure, feed_title in transcripts_to_download:
-            executor.submit(
-                _fetch_and_write_transcript,
-                db,
-                title,
-                url,
-                mimetype,
-                enclosure,
-                feed_title,
-                transcripts_path,
-                verbose,
-            )
+    def _fetch_and_write_transcript(
+        transcript: tuple[str, str, str, str, str],
+    ) -> tuple[str, str] | None:
 
-
-def _fetch_and_write_transcript(  # noqa: PLR0913
-    db: Datastore,
-    title: str,
-    url: str,
-    mimetype: str,
-    enclosure: str,
-    feed_title: str,
-    transcripts_path: Path,
-    verbose: bool,
-) -> None:
-    if verbose:
-        print(f"⬇️Downloading {title} @ {url}")
-    try:
-        response = requests.get(url, headers=_headers_ua())
-    except requests.exceptions.RequestException as e:
-        print(f"⛔ Error downloading {url}: {e}")
-        return
-
-    if not response.ok:
-        print(f"⛔ Error code {response.status_code} downloading {url}")
+        title, url, mimetype, enclosure, feed_title = transcript
         if verbose:
-            print(response.headers)
-        return
-    feed_path = transcripts_path / _sanitize_for_path(feed_title)
-    feed_path.mkdir(exist_ok=True)
-    file_ext = _file_extension_for_type(response.headers, mimetype)
-    file_path = feed_path / (_sanitize_for_path(title) + file_ext)
-    if verbose:
-        print(f"📝Saving {file_path}")
-    with file_path.open(mode="wb") as file:
-        file.write(response.content)
-        db.update_transcript_download_paths(
-            enclosure,
-            str(file_path.absolute()),
+            print(f"⬇️Downloading {title} @ {url}")
+        try:
+            response = requests.get(url, headers=_headers_ua())
+        except requests.exceptions.RequestException as e:
+            print(f"⛔ Error downloading {url}: {e}")
+            return None
+
+        if not response.ok:
+            print(f"⛔ Error code {response.status_code} downloading {url}")
+            if verbose:
+                print(response.headers)
+            return None
+        feed_path = transcripts_path / _sanitize_for_path(feed_title)
+        feed_path.mkdir(exist_ok=True)
+        file_ext = _file_extension_for_type(response.headers, mimetype)
+        file_path = feed_path / (_sanitize_for_path(title) + file_ext)
+        if verbose:
+            print(f"📝Saving {file_path}")
+        with file_path.open(mode="wb") as file:
+            file.write(response.content)
+        return enclosure, str(file_path.absolute())
+
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+        results = list(
+            executor.map(_fetch_and_write_transcript, transcripts_to_download),
         )
+
+    if verbose:
+        print(f"Saving {len(results)} transcripts to database")
+    for row in results:
+        if row is not None:
+            enclosure, file_path = row
+            db.update_transcript_download_paths(
+                enclosure,
+                str(file_path),
+            )
 
 
 @cli.command()

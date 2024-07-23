@@ -3,8 +3,8 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 import requests
+from podcast_chapter_tools.entities import Chapter
 
-from .chapters.entities import Chapter
 from .constants import (
     DESCRIPTION,
     TITLE,
