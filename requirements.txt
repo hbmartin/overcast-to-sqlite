@@ -20,7 +20,7 @@ pytype==2024.4.11
 PyYAML==6.0.1
 requests==2.32.3
 requests-mock==1.12.1
-ruff==0.5.5
+ruff==0.5.6
 soupsieve==2.5
 sqlite-fts4==1.0.3
 sqlite-utils==3.37
