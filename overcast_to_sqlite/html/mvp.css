@@ -3,14 +3,14 @@
 :root {
     --active-brightness: 0.85;
     --border-radius: 5px;
-    --box-shadow: 2px 2px 10px;
+    --box-shadow: 0 2px 5px;
     --color-accent: #118bee15;
     --color-bg: #fff;
     --color-bg-secondary: #e9e9e9;
     --color-link: #118bee;
     --color-secondary: #920de9;
     --color-secondary-accent: #920de90b;
-    --color-shadow: #f4f4f4;
+    --color-shadow: #d4d4d4;
     --color-table: #118bee;
     --color-text: #000;
     --color-text-secondary: #999;
@@ -87,7 +87,6 @@ hr {
 section {
     display: flex;
     flex-wrap: wrap;
-    justify-content: var(--justify-important);
 }
 
 section img,
@@ -237,6 +236,14 @@ h6 {
     line-height: var(--line-height);
     text-wrap: balance;
 }
+main > h1 {
+    margin-left: 1.5em;
+}
+
+main > h1::before {
+    content: "🗓";
+    margin-right: 0.3em;
+}
 
 mark {
     padding: 0.1rem;
@@ -321,21 +328,6 @@ h2 > a:hover {
     text-shadow: var(--color-link) 0px 0 1px;
 }
 
-a b,
-a em,
-a i,
-a strong,
-button,
-input[type="submit"] {
-    border-radius: var(--border-radius);
-    display: inline-block;
-    font-size: medium;
-    font-weight: bold;
-    line-height: var(--line-height);
-    margin: 0.5rem 0;
-    padding: 1rem 2rem;
-}
-
 button,
 input[type="submit"] {
     font-family: var(--font-family);
@@ -350,24 +342,6 @@ input[type="submit"]:hover {
 button:active,
 input[type="submit"]:active {
     filter: brightness(var(--active-brightness));
-}
-
-a b,
-a strong,
-button,
-input[type="submit"] {
-    background-color: var(--color-link);
-    border: 2px solid var(--color-link);
-    color: var(--color-bg);
-}
-
-a em,
-a i {
-    border: 2px solid var(--color-link);
-    border-radius: var(--border-radius);
-    color: var(--color-link);
-    display: inline-block;
-    padding: 1rem 2rem;
 }
 
 article aside a {

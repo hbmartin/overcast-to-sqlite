@@ -302,12 +302,13 @@ def html(
     """Download and store available chapters for all or starred episodes."""
     if output_path:
         if Path(output_path).is_dir():
-            html_output_path = Path(output_path) / "overcast_played.html"
+            html_output_path = Path(output_path) / "overcast-played.html"
         else:
             html_output_path = Path(output_path)
     else:
-        html_output_path = Path(db_path).parent / "overcast_played.html"
+        html_output_path = Path(db_path).parent / "overcast-played.html"
     generate_html_played(db_path, html_output_path)
+    print("📝Saved HTML to:", html_output_path.absolute())
 
 
 @cli.command("all")
@@ -355,11 +356,6 @@ def save_extend_download(
     )
     ctx.invoke(
         chapters,
-        db_path=db_path,
-        archive_path=None,
-    )
-    ctx.invoke(
-        html,
         db_path=db_path,
         archive_path=None,
     )

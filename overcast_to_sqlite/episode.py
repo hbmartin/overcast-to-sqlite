@@ -90,7 +90,7 @@ def extract_ep_attrs(
         ep_attrs.update(_element_to_dict(ep_el))
 
     if "enclosure:url" in ep_attrs:
-        ep_attrs[ENCLOSURE_URL] = ep_attrs.pop("enclosure:url")
+        ep_attrs[ENCLOSURE_URL] = ep_attrs.pop("enclosure:url").split("?")[0]
         # Need to figure out how to extract chapters more cheaply, this is expensive
         # to perform across all episodes.
         return ep_attrs, []
