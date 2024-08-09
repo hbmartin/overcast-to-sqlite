@@ -43,7 +43,7 @@ def fetch_xml_and_extract(
         archive_dir.mkdir(parents=True, exist_ok=True)
         archive_dir.joinpath(f"{title}.xml").write_text(xml_string)
         if verbose:
-             print(f"Saving feed XML to {archive_dir}/{title}.xml")
+            print(f"Saving feed XML to {archive_dir}/{title}.xml")
     try:
         root = ElementTree.fromstring(xml_string)
     except ElementTree.ParseError:

@@ -8,6 +8,7 @@ import click
 import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
+from overcast_to_sqlite.html.page import generate_html_played
 
 from .constants import BATCH_SIZE, TITLE
 from .datastore import Datastore
@@ -282,6 +283,33 @@ def chapters(
     backfill_all_chapters(db_path, archive_root)
 
 
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_path",
+    type=click.Path(file_okay=False, dir_okay=True, allow_dash=False),
+)
+def html(
+    db_path: str,
+    output_path: str | None,
+) -> None:
+    """Download and store available chapters for all or starred episodes."""
+    if output_path:
+        if Path(output_path).is_dir():
+            html_output_path = Path(output_path) / "overcast_played.html"
+        else:
+            html_output_path = Path(output_path)
+    else:
+        html_output_path = Path(db_path).parent / "overcast_played.html"
+    generate_html_played(db_path, html_output_path)
+
+
 @cli.command("all")
 @click.pass_context
 @click.argument(
@@ -330,7 +358,12 @@ def save_extend_download(
         db_path=db_path,
         archive_path=None,
     )
-    # TODO: html
+    ctx.invoke(
+        html,
+        db_path=db_path,
+        archive_path=None,
+    )
+
 
 if __name__ == "__main__":
     cli()

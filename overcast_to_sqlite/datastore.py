@@ -366,3 +366,40 @@ class Datastore:
             'AND "psc:chapters:version" IS NOT NULL '
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )
+
+    def get_recently_played(self) -> list[dict[str, str]]:
+        fields = [
+            f"{EPISODES}.{TITLE}",
+            f"{EPISODES}.{URL}",
+            f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
+            f"'{FEEDS_EXTENDED}.itunes:image:href' as image_",
+            f"{FEEDS_EXTENDED}.link as link_",
+            f"{EPISODES_EXTENDED}.description as description",
+            f"{EPISODES_EXTENDED}.pubDate as pubDate",
+            f"'{EPISODES_EXTENDED}.itunes:image:href' as 'images.'",
+            f"{EPISODES_EXTENDED}.link as 'links.'",
+            "starred",
+        ]
+        query = (
+            "SELECT "
+            + ", ".join(fields[:-1])
+            + (
+                f", CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred "
+                f"FROM {EPISODES} "
+                f"LEFT JOIN {EPISODES_EXTENDED} ON {EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+                f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC "
+                f"LIMIT 100"
+            )
+        )
+        results = self.db.execute(query).fetchall()
+        for i, v in enumerate(results[0]):
+            print(fields[i].split(" ")[-1].replace("s.", "_").replace("'", ""))
+        return [
+            {
+                fields[i].split(" ")[-1].replace("s.", "_").replace("'", ""): v
+                for (i, v) in enumerate(result)
+                if v is not None
+            }
+            for result in results
+        ]
