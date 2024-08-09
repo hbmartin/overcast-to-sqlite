@@ -368,6 +368,7 @@ class Datastore:
         )
 
     def get_recently_played(self) -> list[dict[str, str]]:
+        """Retrieve a list of recently played episodes with metadata."""
         fields = [
             f"{EPISODES}.{TITLE}",
             f"{EPISODES}.{URL}",
