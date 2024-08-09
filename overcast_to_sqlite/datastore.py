@@ -387,8 +387,10 @@ class Datastore:
             + (
                 f", CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred "
                 f"FROM {EPISODES} "
-                f"LEFT JOIN {EPISODES_EXTENDED} ON {EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
-                f"LEFT JOIN {FEEDS_EXTENDED} ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"LEFT JOIN {EPISODES_EXTENDED} "
+                f"ON {EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+                f"LEFT JOIN {FEEDS_EXTENDED} "
+                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
                 f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC "
                 f"LIMIT 100"
             )
