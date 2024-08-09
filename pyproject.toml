@@ -3,14 +3,17 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [options]
-packages = ["overcast_to_sqlite"]
+packages = ["overcast_to_sqlite", "overcast_to_sqlite.html"]
 
 [tool.setuptools]
-packages = ["overcast_to_sqlite"]
+packages = ["overcast_to_sqlite", "overcast_to_sqlite.html"]
+
+[tool.setuptools.package-data]
+"overcast_to_sqlite.html" = ["*.css", "*.html"]
 
 [project]
 name = "overcast-to-sqlite"
-version = "0.6.0"
+version = "0.7.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
 requires-python = ">=3.11"

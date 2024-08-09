@@ -8,6 +8,7 @@ from xml.etree.ElementTree import Element
 from requests import Session
 
 from .constants import (
+    ENCLOSURE_URL,
     INCLUDE_PODCAST_IDS,
     OVERCAST_ID,
     SMART,
@@ -116,6 +117,8 @@ def extract_feed_and_episodes_from_opml(
         for episode_xml in feed.findall("./outline[@type='podcast-episode']"):
             ep_attrs: dict[str, Any] = episode_xml.attrib.copy()
             ep_attrs[OVERCAST_ID] = int(ep_attrs[OVERCAST_ID])
+            ep_attrs[ENCLOSURE_URL] = ep_attrs[ENCLOSURE_URL].split("?")[0]
+
             ep_attrs["feedId"] = feed_attrs["overcastId"]
             ep_attrs["played"] = ep_attrs.get("played", False) == "1"
             ep_attrs["userDeleted"] = ep_attrs.get("userDeleted", False) == "1"

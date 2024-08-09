@@ -8,6 +8,7 @@ import click
 import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
+from overcast_to_sqlite.html.page import generate_html_played
 
 from .constants import BATCH_SIZE, TITLE
 from .datastore import Datastore
@@ -203,9 +204,7 @@ def transcripts(  # noqa: C901
         Path(archive_path) if archive_path else _archive_path(db_path, "transcripts")
     )
 
-    if not transcripts_path.exists():
-        transcripts_path.mkdir(parents=True)
-        print(f"🗂️Created {transcripts_path}")
+    transcripts_path.mkdir(parents=True, exist_ok=True)
 
     if db.ensure_transcript_columns():
         print("⚠️No transcript URLs found in database, please run `extend`")
@@ -282,6 +281,34 @@ def chapters(
         Path(archive_path) if archive_path else Path(db_path).parent / "archive"
     )
     backfill_all_chapters(db_path, archive_root)
+
+
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_path",
+    type=click.Path(file_okay=False, dir_okay=True, allow_dash=False),
+)
+def html(
+    db_path: str,
+    output_path: str | None,
+) -> None:
+    """Download and store available chapters for all or starred episodes."""
+    if output_path:
+        if Path(output_path).is_dir():
+            html_output_path = Path(output_path) / "overcast-played.html"
+        else:
+            html_output_path = Path(output_path)
+    else:
+        html_output_path = Path(db_path).parent / "overcast-played.html"
+    generate_html_played(db_path, html_output_path)
+    print("📝Saved HTML to:", html_output_path.absolute())
 
 
 @cli.command("all")
