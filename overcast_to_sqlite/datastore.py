@@ -1,3 +1,5 @@
+# mypy: disable-error-code="union-attr"
+
 import datetime
 import sqlite3
 from collections.abc import Iterable

@@ -35,7 +35,7 @@ classifiers = [
 dependencies = ["click", "podcast-chapter-tools", "python-dateutil", "requests", "sqlite-utils"]
 
 [project.optional-dependencies]
-lint = ["pyroma", "pytype", "ruff", "types-python-dateutil", "types-requests", "pytest", "requests-mock"]
+lint = ["pyroma", "mypy", "ruff", "types-python-dateutil", "types-requests", "pytest", "requests-mock"]
 
 [project.scripts]
 overcast-to-sqlite = "overcast_to_sqlite.cli:cli"
