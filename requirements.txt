@@ -18,7 +18,7 @@ python-dateutil==2.9.0.post0
 pytype==2024.4.11
 requests==2.32.3
 requests-mock==1.12.1
-ruff==0.5.7
+ruff==0.6.1
 soupsieve==2.5
 sqlite-fts4==1.0.3
 sqlite-utils==3.37
