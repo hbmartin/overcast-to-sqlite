@@ -1,5 +1,5 @@
 black==24.8.0
-build==1.2.2
+build==1.2.2.post1
 charset-normalizer==3.3.2
 click==8.1.7
 click-default-group==1.2.4
