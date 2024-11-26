@@ -53,5 +53,9 @@ def generate_html_played(db_path: str, html_output_path: Path) -> None:
             ep["starred"] = "⭐&nbsp;&nbsp;"
         else:
             ep["starred"] = ""
-        page_vars["episodes"] += episode_template.format_map(ep)
+        try:
+            page_vars["episodes"] += episode_template.format_map(ep)
+        except KeyError as e:
+            print(f"Error formatting episode: KeyError {e}")
+            print(ep)
     html_output_path.write_text(page_template.format_map(page_vars))
