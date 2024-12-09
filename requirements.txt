@@ -31,7 +31,7 @@ python-dateutil==2.9.0.post0
     #   sqlite-utils
 requests==2.32.3
     # via overcast-to-sqlite (pyproject.toml)
-six==1.16.0
+six==1.17.0
     # via python-dateutil
 soupsieve==2.6
     # via beautifulsoup4
