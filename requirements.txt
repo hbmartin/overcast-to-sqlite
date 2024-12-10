@@ -15,7 +15,7 @@ click-default-group==1.2.4
     # via sqlite-utils
 idna==3.10
     # via requests
-loguru==0.7.2
+loguru==0.7.3
     # via podcast-transcript-convert
 lxml==5.3.0
     # via podcast-transcript-convert
