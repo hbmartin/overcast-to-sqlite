@@ -33,6 +33,7 @@ def generate_html_played(db_path: str, html_output_path: Path) -> None:
     page_vars = {
         "title": "Recently Played",
         "style": Path(this_dir / "mvp.css").read_text(),
+        "script": Path(this_dir / "search.js").read_text(),
         "episodes": "",
     }
     page_template = (this_dir / "index.html").read_text()
