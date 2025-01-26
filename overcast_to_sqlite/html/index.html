@@ -16,7 +16,13 @@
 
 <body>
 <main>
-    <input type="text" oninput="searchEps(this.value)" placeholder="Search">
+    <input
+            type="text"
+            id="episode-search"
+            oninput="searchEps(this.value)"
+            placeholder="Search episodes..."
+            aria-label="Search episodes"
+    />
     {episodes}
 </main>
 <footer>
