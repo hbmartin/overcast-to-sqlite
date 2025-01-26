@@ -29,7 +29,7 @@ from .utils import (
 )
 
 
-@click.group
+@click.group()
 @click.version_option()
 def cli() -> None:
     """Save listening history and feed/episode info from Overcast to SQLite."""
