@@ -308,7 +308,7 @@ def html(
     else:
         html_output_path = Path(db_path).parent / "overcast-played.html"
     generate_html_played(db_path, html_output_path)
-    print("📝Saved HTML to:", html_output_path.absolute())
+    print("📝Saved HTML to: file://", html_output_path.absolute())
 
 
 @cli.command("all")

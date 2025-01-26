@@ -9,7 +9,7 @@ packages = ["overcast_to_sqlite", "overcast_to_sqlite.html"]
 packages = ["overcast_to_sqlite", "overcast_to_sqlite.html"]
 
 [tool.setuptools.package-data]
-"overcast_to_sqlite.html" = ["*.css", "*.html"]
+"overcast_to_sqlite.html" = ["*.css", "*.html", "*.js"]
 
 [project]
 name = "overcast-to-sqlite"
