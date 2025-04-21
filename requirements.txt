@@ -33,7 +33,7 @@ requests==2.32.3
     # via overcast-to-sqlite (pyproject.toml)
 six==1.16.0
     # via python-dateutil
-soupsieve==2.6
+soupsieve==2.7
     # via beautifulsoup4
 sqlite-fts4==1.0.3
     # via sqlite-utils
