@@ -2,7 +2,7 @@
 #    uv pip compile pyproject.toml -o requirements.txt
 beautifulsoup4==4.12.3
     # via podcast-transcript-convert
-certifi==2025.1.31
+certifi==2025.4.26
     # via requests
 charset-normalizer==3.4.1
     # via requests
