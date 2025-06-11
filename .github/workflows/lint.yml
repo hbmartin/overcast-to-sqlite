@@ -17,7 +17,7 @@ jobs:
         cache: pip
         cache-dependency-path: requirements.txt
         allow-prereleases: true
-    - run: sudo apt-get install python3-lxml
+    - run: sudo apt-get install libxml2 libxslt libxml2-dev libxslt-dev python-dev
     - run: pip install -e '.[lint]'
     - run: ruff check overcast_to_sqlite
     - name: Run mypy (pytype on 3.11)
