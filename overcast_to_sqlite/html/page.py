@@ -28,19 +28,19 @@ def _convert_urls_to_links(text: str) -> str:
 
 
 class HTMLTagFixer(HTMLParser):
+    SELF_CLOSING_TAGS = {'br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'}
+
     def __init__(self):
         super().__init__()
         self.open_tags = []
         self.output = []
-        
+
     def handle_starttag(self, tag, attrs):
         # Self-closing tags don't need closing tags
-        self_closing_tags = {'br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'}
-        
         attr_str = ''.join(f' {name}="{value}"' for name, value in attrs)
         self.output.append(f'<{tag}{attr_str}>')
-        
-        if tag.lower() not in self_closing_tags:
+
+        if tag.lower() not in self.SELF_CLOSING_TAGS:
             self.open_tags.append(tag)
     
     def handle_endtag(self, tag):
