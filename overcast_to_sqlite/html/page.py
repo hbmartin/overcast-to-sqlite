@@ -4,6 +4,7 @@ from pathlib import Path
 
 from overcast_to_sqlite.constants import DESCRIPTION
 from overcast_to_sqlite.datastore import Datastore
+from overcast_to_sqlite.html.htmltagfixer import HTMLTagFixer
 
 
 def _convert_urls_to_links(text: str) -> str:
@@ -26,6 +27,19 @@ def _convert_urls_to_links(text: str) -> str:
     return "".join(result)
 
 
+def _fix_unclosed_html_tags(html_string: str) -> str:
+    """Fix unclosed HTML tags by adding missing closing tags."""
+    if not html_string.strip():
+        return html_string
+
+    fixer = HTMLTagFixer()
+    try:
+        fixer.feed(html_string)
+        return fixer.get_fixed_html()
+    except Exception:  # noqa: BLE001
+        return html_string
+
+
 def generate_html_played(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_recently_played()
@@ -41,7 +55,9 @@ def generate_html_played(db_path: str, html_output_path: Path) -> None:
     last_user_updated_date = None
     for ep in episodes:
         ep["episode_title"] = html.escape(ep["episode_title"])
-        ep[DESCRIPTION] = _convert_urls_to_links(ep[DESCRIPTION])
+        ep[DESCRIPTION] = _fix_unclosed_html_tags(
+            _convert_urls_to_links(ep[DESCRIPTION]),
+        )
         user_date = ep["userUpdatedDate"].split("T")[0]
         if last_user_updated_date != user_date:
             page_vars["episodes"] += (
