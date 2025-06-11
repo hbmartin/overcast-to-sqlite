@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
@@ -16,7 +16,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: requirements.txt
-    - run: echo '${{ steps.cpython3.outputs.python-version }}'
+        allow-prereleases: true
+    - run: sudo apt-get install libxml2 libxml2-dev libxslt-dev python-dev-is-python3
     - run: pip install -e '.[lint]'
     - run: ruff check overcast_to_sqlite
     - name: Run mypy (pytype on 3.11)
