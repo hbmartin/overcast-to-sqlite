@@ -16,6 +16,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: requirements.txt
+        allow-prereleases: true
     - run: echo '${{ steps.cpython3.outputs.python-version }}'
     - run: pip install -e '.[lint]'
     - run: ruff check overcast_to_sqlite
