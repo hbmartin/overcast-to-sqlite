@@ -11,6 +11,8 @@
 
 Save listening history and feed/episode info from Overcast to a SQLite database. Try exploring your podcast listening habits with [Datasette](https://datasette.io/)!
 
+If you simply want a page showing your recently listened episodes, try out the sister project [overcast-to-pages](https://github.com/hbmartin/overcast-to-pages-template).
+
 - [How to install](#how-to-install)
 - [Authentication](#authentication)
 - [Fetching and saving updates](#fetching-and-saving-updates)
