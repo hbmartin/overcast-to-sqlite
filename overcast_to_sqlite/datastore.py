@@ -41,6 +41,8 @@ from .constants import (
     XML_URL,
 )
 
+_DEFAULT_EPISODE_LIMIT = 100
+
 
 class Datastore:
     """Object responsible for all database interactions."""
@@ -195,15 +197,27 @@ class Datastore:
         episodes: list[dict],
     ) -> None:
         """Upsert feed and episodes into database."""
-        limit_days = os.getenv("OVERCAST_LIMIT_DAYS")
+        limit_days = None
+        try:
+            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+                limit_days = int(env_limit)
+        except ValueError:
+            pass
+
         if limit_days:
-            cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=int(limit_days))
+            cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
+                days=int(limit_days),
+            )
             episodes = [
-                episode for episode in episodes
-                if episode.get(USER_UPDATED_DATE) and 
-                datetime.datetime.fromisoformat(episode[USER_UPDATED_DATE].replace('Z', '+00:00')) >= cutoff_date
+                episode
+                for episode in episodes
+                if episode.get(USER_UPDATED_DATE)
+                and datetime.datetime.fromisoformat(
+                    episode[USER_UPDATED_DATE].replace("Z", "+00:00"),
+                )
+                >= cutoff_date
             ]
-        
+
         self.db[FEEDS].upsert(feed, pk=OVERCAST_ID)
         self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
 
@@ -444,7 +458,7 @@ class Datastore:
                 f"JOIN {FEEDS_EXTENDED} "
                 f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
                 f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC "
-                f"LIMIT 100"
+                f"LIMIT {_DEFAULT_EPISODE_LIMIT}"
             )
         )
 
@@ -459,20 +473,33 @@ class Datastore:
         ]
 
     def cleanup_old_episodes(self) -> None:
-        """Delete episodes older than OVERCAST_LIMIT_DAYS if more than 100 episodes exist."""
-        limit_days = os.getenv("OVERCAST_LIMIT_DAYS")
+        """Delete episodes older than OVERCAST_LIMIT_DAYS.
+
+        Only deletes if more than 100 episodes exist.
+        """
+        limit_days = None
+        try:
+            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+                limit_days = int(env_limit)
+        except ValueError:
+            pass
+
         if not limit_days:
             return
-            
-        episode_count = self.db.execute(f"SELECT COUNT(*) FROM {EPISODES}").fetchone()[0]
-        if episode_count <= 100:
+
+        episode_count = self.db.execute(f"SELECT COUNT(*) FROM {EPISODES}").fetchone()[
+            0
+        ]
+        if episode_count <= _DEFAULT_EPISODE_LIMIT:
             return
-            
-        cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=int(limit_days))
+
+        cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
+            days=int(limit_days),
+        )
         cutoff_iso = cutoff_date.isoformat()
-        
+
         self.db.execute(
             f"DELETE FROM {EPISODES} WHERE {USER_UPDATED_DATE} < ?",
-            [cutoff_iso]
+            [cutoff_iso],
         )
         self.db.conn.commit()
