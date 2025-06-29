@@ -116,6 +116,7 @@ def save(
         db.save_feed_and_episodes(feed, episodes)
 
     db.mark_feed_removed_if_missing(ingested_feed_ids)
+    db.cleanup_old_episodes()
 
 
 def _auth_and_fetch(auth_path: str, archive: Path | None) -> str:

@@ -1,6 +1,7 @@
 # mypy: disable-error-code="union-attr"
 
 import datetime
+import os
 import sqlite3
 from collections.abc import Iterable
 
@@ -194,6 +195,15 @@ class Datastore:
         episodes: list[dict],
     ) -> None:
         """Upsert feed and episodes into database."""
+        limit_days = os.getenv("OVERCAST_LIMIT_DAYS")
+        if limit_days:
+            cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=int(limit_days))
+            episodes = [
+                episode for episode in episodes
+                if episode.get(USER_UPDATED_DATE) and 
+                datetime.datetime.fromisoformat(episode[USER_UPDATED_DATE].replace('Z', '+00:00')) >= cutoff_date
+            ]
+        
         self.db[FEEDS].upsert(feed, pk=OVERCAST_ID)
         self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
 
@@ -447,3 +457,22 @@ class Datastore:
             }
             for result in results
         ]
+
+    def cleanup_old_episodes(self) -> None:
+        """Delete episodes older than OVERCAST_LIMIT_DAYS if more than 100 episodes exist."""
+        limit_days = os.getenv("OVERCAST_LIMIT_DAYS")
+        if not limit_days:
+            return
+            
+        episode_count = self.db.execute(f"SELECT COUNT(*) FROM {EPISODES}").fetchone()[0]
+        if episode_count <= 100:
+            return
+            
+        cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=int(limit_days))
+        cutoff_iso = cutoff_date.isoformat()
+        
+        self.db.execute(
+            f"DELETE FROM {EPISODES} WHERE {USER_UPDATED_DATE} < ?",
+            [cutoff_iso]
+        )
+        self.db.conn.commit()
