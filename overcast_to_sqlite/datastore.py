@@ -472,6 +472,120 @@ class Datastore:
             for result in results
         ]
 
+    def get_starred_episodes(self) -> list[dict[str, str]]:
+        """Retrieve a list of starred episodes with metadata."""
+        self.db.execute(
+            f"UPDATE {EPISODES} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+        self.db.execute(
+            f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+        fields = [
+            f"{EPISODES}.{TITLE}",
+            f"{EPISODES}.{URL}",
+            f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
+            f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
+            f"{FEEDS_EXTENDED}.link as link_",
+            f"coalesce({EPISODES_EXTENDED}.description, "
+            "'No description') as description",
+            f"{EPISODES_EXTENDED}.pubDate as pubDate",
+            f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
+            f"{EPISODES_EXTENDED}.link as 'links.'",
+            f"{USER_REC_DATE} as userRecDate",
+            "1 as starred",
+        ]
+        query = (
+            "SELECT "
+            + ", ".join(fields[:-1])
+            + (
+                f", 1 AS starred "
+                f"FROM {EPISODES} "
+                f"JOIN {EPISODES_EXTENDED} ON "
+                f"{EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+                f"JOIN {FEEDS_EXTENDED} "
+                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"WHERE {USER_REC_DATE} IS NOT NULL ORDER BY {USER_REC_DATE} DESC "
+                f"LIMIT {_DEFAULT_EPISODE_LIMIT}"
+            )
+        )
+
+        results = self.db.execute(query).fetchall()
+        return [
+            {
+                fields[i].split(" ")[-1].replace("s.", "_").replace("'", ""): v
+                for (i, v) in enumerate(result)
+                if v is not None
+            }
+            for result in results
+        ]
+
+    def get_deleted_episodes(self) -> list[dict[str, str]]:
+        """Retrieve a list of deleted episodes with metadata."""
+        self.db.execute(
+            f"UPDATE {EPISODES} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+        self.db.execute(
+            f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+        fields = [
+            f"{EPISODES}.{TITLE}",
+            f"{EPISODES}.{URL}",
+            f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
+            f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
+            f"{FEEDS_EXTENDED}.link as link_",
+            f"coalesce({EPISODES_EXTENDED}.description, "
+            "'No description') as description",
+            f"{EPISODES_EXTENDED}.pubDate as pubDate",
+            f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
+            f"{EPISODES_EXTENDED}.link as 'links.'",
+            f"{USER_UPDATED_DATE}",
+            "0 as starred",
+        ]
+        query = (
+            "SELECT "
+            + ", ".join(fields[:-1])
+            + (
+                f", 0 AS starred "
+                f"FROM {EPISODES} "
+                f"JOIN {EPISODES_EXTENDED} ON "
+                f"{EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+                f"JOIN {FEEDS_EXTENDED} "
+                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+                f"WHERE userDeleted=1 AND played=0 ORDER BY {USER_UPDATED_DATE} DESC "
+                f"LIMIT {_DEFAULT_EPISODE_LIMIT}"
+            )
+        )
+
+        results = self.db.execute(query).fetchall()
+        return [
+            {
+                fields[i].split(" ")[-1].replace("s.", "_").replace("'", ""): v
+                for (i, v) in enumerate(result)
+                if v is not None
+            }
+            for result in results
+        ]
+
     def cleanup_old_episodes(self) -> None:
         """Delete episodes older than OVERCAST_LIMIT_DAYS.
 

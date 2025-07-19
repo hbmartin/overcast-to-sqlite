@@ -8,7 +8,7 @@ import click
 import requests
 
 from overcast_to_sqlite.chapters_backfill import backfill_all_chapters
-from overcast_to_sqlite.html.page import generate_html_played
+from overcast_to_sqlite.html.page import generate_html_played, generate_html_starred, generate_html_deleted
 
 from .constants import BATCH_SIZE, TITLE
 from .datastore import Datastore
@@ -300,16 +300,24 @@ def html(
     db_path: str,
     output_path: str | None,
 ) -> None:
-    """Download and store available chapters for all or starred episodes."""
+    """Generate HTML pages for recently played, starred, and deleted episodes."""
     if output_path:
-        if Path(output_path).is_dir():
-            html_output_path = Path(output_path) / "overcast-played.html"
-        else:
-            html_output_path = Path(output_path)
+        output_dir = Path(output_path) if Path(output_path).is_dir() else Path(output_path).parent
     else:
-        html_output_path = Path(db_path).parent / "overcast-played.html"
-    generate_html_played(db_path, html_output_path)
-    print(f"📝Saved HTML to: file://{html_output_path.absolute()}")
+        output_dir = Path(db_path).parent
+    
+    played_path = output_dir / "overcast-played.html"
+    starred_path = output_dir / "overcast-starred.html"
+    deleted_path = output_dir / "overcast-deleted.html"
+    
+    generate_html_played(db_path, played_path)
+    generate_html_starred(db_path, starred_path)
+    generate_html_deleted(db_path, deleted_path)
+    
+    print(f"📝Saved HTML files to:")
+    print(f"  Recently Played: file://{played_path.absolute()}")
+    print(f"  Starred Episodes: file://{starred_path.absolute()}")
+    print(f"  Deleted Episodes: file://{deleted_path.absolute()}")
 
 
 @cli.command("all")
