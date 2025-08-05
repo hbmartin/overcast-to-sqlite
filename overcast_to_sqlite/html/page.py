@@ -41,13 +41,12 @@ def _fix_unclosed_html_tags(html_string: str) -> str:
 
 
 def _generate_html_episodes(
-    episodes: list[dict[str, str]], 
-    title: str, 
+    episodes: list[dict[str, str]],
+    title: str,
     html_output_path: Path,
-    show_starred_icon: bool = True,
-    date_field: str = "userUpdatedDate"
+    date_field: str = "userUpdatedDate",
 ) -> None:
-    """Common function to generate HTML for any list of episodes."""
+    """Generate HTML for any list of episodes."""
     this_dir = Path(__file__).parent
     page_vars = {
         "title": title,
@@ -58,7 +57,7 @@ def _generate_html_episodes(
     page_template = (this_dir / "index.html").read_text()
     episode_template = (this_dir / "episode.html").read_text()
     last_user_updated_date = None
-    
+
     for ep in episodes:
         ep["episode_title"] = html.escape(ep["episode_title"])
         ep[DESCRIPTION] = _fix_unclosed_html_tags(
@@ -72,12 +71,10 @@ def _generate_html_episodes(
                 ")</script></h1><hr />"
             )
             last_user_updated_date = user_date
-        
-        if show_starred_icon and ep.get("starred") == "1":
+
+        if ep.get("starred") == "1":
             ep["starred"] = "⭐&nbsp;&nbsp;"
-        else:
-            ep["starred"] = ""
-            
+
         try:
             page_vars["episodes"] += episode_template.format_map(ep)
         except KeyError as e:
@@ -95,10 +92,20 @@ def generate_html_played(db_path: str, html_output_path: Path) -> None:
 def generate_html_starred(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_starred_episodes()
-    _generate_html_episodes(episodes, "Starred Episodes", html_output_path, date_field="userRecDate")
+    _generate_html_episodes(
+        episodes,
+        "Starred Episodes",
+        html_output_path,
+        date_field="userRecDate",
+    )
 
 
 def generate_html_deleted(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_deleted_episodes()
-    _generate_html_episodes(episodes, "Deleted Episodes", html_output_path, show_starred_icon=False)
+    _generate_html_episodes(
+        episodes,
+        "Deleted Episodes",
+        html_output_path,
+        show_starred_icon=False,
+    )
