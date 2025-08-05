@@ -264,7 +264,7 @@ class Datastore:
             f"WHERE {EPISODES_EXTENDED}.{ENCLOSURE_URL} IS NULL "
             f"AND ({FEEDS_EXTENDED}.{LAST_UPDATED} IS NULL "
             f"OR {FEEDS_EXTENDED}.{LAST_UPDATED} < {EPISODES}.{PUB_DATE}) "
-            f"GROUP BY {FEED_ID};",
+            f"GROUP BY {EPISODES}.{FEED_ID};",
         ).fetchall()
 
     def save_playlist(self, playlist: dict) -> None:
