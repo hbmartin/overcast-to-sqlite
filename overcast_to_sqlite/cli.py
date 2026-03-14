@@ -156,7 +156,7 @@ def extend(
     def _fetch_feed_extend_save(feed_url: tuple[str, str]) -> tuple[dict, list[dict]]:
         feed_title, url = feed_url
         title = _sanitize_for_path(feed_title)
-        feed, episodes, chapters = fetch_xml_and_extract(
+        feed, episodes, chapters = fetch_xml_and_extract(  # noqa: RUF059
             xml_url=url,
             title=title,
             archive_dir=archive_dir,
