@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import json
-from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
-from xml.etree.ElementTree import Element
+from typing import TYPE_CHECKING, Any, cast
 
 from requests import Session
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from xml.etree.ElementTree import Element
 
 from .constants import (
     ENCLOSURE_URL,
@@ -103,7 +107,7 @@ def extract_feed_and_episodes_from_opml(
 ) -> Iterable[tuple[dict, list[dict]]]:
     for feed in root.findall("./body/outline[@text='feeds']/outline[@type='rss']"):
         episodes = []
-        feed_attrs: dict[str, Any] = feed.attrib.copy()
+        feed_attrs = cast("dict[str, Any]", feed.attrib.copy())
         feed_attrs[OVERCAST_ID] = int(feed_attrs[OVERCAST_ID])
         feed_attrs["subscribed"] = feed_attrs.get("subscribed", False) == "1"
         feed_attrs["notifications"] = feed_attrs.get("notifications", False) == "1"
@@ -115,7 +119,7 @@ def extract_feed_and_episodes_from_opml(
         del feed_attrs["text"]
 
         for episode_xml in feed.findall("./outline[@type='podcast-episode']"):
-            ep_attrs: dict[str, Any] = episode_xml.attrib.copy()
+            ep_attrs = cast("dict[str, Any]", episode_xml.attrib.copy())
             ep_attrs[OVERCAST_ID] = int(ep_attrs[OVERCAST_ID])
             ep_attrs[ENCLOSURE_URL] = ep_attrs[ENCLOSURE_URL].split("?")[0]
 

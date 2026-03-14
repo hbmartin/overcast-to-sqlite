@@ -13,10 +13,10 @@ packages = ["overcast_to_sqlite", "overcast_to_sqlite.html"]
 
 [project]
 name = "overcast-to-sqlite"
-version = "0.9.0"
+version = "1.0.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 authors = [
     { name = "Harold Martin", email = "Harold.Martin@gmail.com" },
 ]
@@ -28,16 +28,11 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dependencies = ["click", "podcast-chapter-tools", "python-dateutil", "requests", "sqlite-utils"]
-
-[project.optional-dependencies]
-lint = ["pyroma", "mypy", "ruff", "types-python-dateutil", "types-requests", "pytest", "requests-mock"]
 
 [project.scripts]
 overcast-to-sqlite = "overcast_to_sqlite.cli:cli"
@@ -52,7 +47,10 @@ dev = [
     "lizard>=1.21.2",
     "mypy>=1.17.1",
     "pyrefly>=0.56.0",
+    "pyroma>=5.0.1",
+    "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "requests-mock>=1.12.1",
     "ruff>=0.12.7",
     "ty>=0.0.23",
     "types-python-dateutil>=2.9.0.20250708",
@@ -66,7 +64,7 @@ exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_ch
 # Same as Black.
 line-length = 88
 indent-width = 4
-target-version = "py311"
+target-version = "py314"
 
 lint.select = ["ALL"]
 lint.ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213", "ICN001", "S608", "S113", "S311", "S314", "T201"]

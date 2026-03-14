@@ -15,5 +15,5 @@ class OpmlFetchError(Exception):
         self.headers = headers
         super().__init__("Failed to fetch OPML from Overcast")
 
-    def __str__(self: "OpmlFetchError") -> str:
+    def __str__(self: OpmlFetchError) -> str:
         return repr(self.headers)
