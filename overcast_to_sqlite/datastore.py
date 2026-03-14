@@ -1,6 +1,7 @@
 # mypy: disable-error-code="union-attr"
 
 import datetime
+import os
 import sqlite3
 from collections.abc import Iterable
 
@@ -39,6 +40,8 @@ from .constants import (
     USER_UPDATED_DATE,
     XML_URL,
 )
+
+_DEFAULT_EPISODE_LIMIT = 100
 
 
 class Datastore:
@@ -194,6 +197,27 @@ class Datastore:
         episodes: list[dict],
     ) -> None:
         """Upsert feed and episodes into database."""
+        limit_days = None
+        try:
+            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+                limit_days = int(env_limit)
+        except ValueError:
+            pass
+
+        if limit_days:
+            cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
+                days=int(limit_days),
+            )
+            episodes = [
+                episode
+                for episode in episodes
+                if episode.get(USER_UPDATED_DATE)
+                and datetime.datetime.fromisoformat(
+                    episode[USER_UPDATED_DATE].replace("Z", "+00:00"),
+                )
+                >= cutoff_date
+            ]
+
         self.db[FEEDS].upsert(feed, pk=OVERCAST_ID)
         self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
 
@@ -240,7 +264,7 @@ class Datastore:
             f"WHERE {EPISODES_EXTENDED}.{ENCLOSURE_URL} IS NULL "
             f"AND ({FEEDS_EXTENDED}.{LAST_UPDATED} IS NULL "
             f"OR {FEEDS_EXTENDED}.{LAST_UPDATED} < {EPISODES}.{PUB_DATE}) "
-            f"GROUP BY {FEED_ID};",
+            f"GROUP BY {EPISODES}.{FEED_ID};",
         ).fetchall()
 
     def save_playlist(self, playlist: dict) -> None:
@@ -369,8 +393,9 @@ class Datastore:
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )
 
-    def get_recently_played(self) -> list[dict[str, str]]:
-        """Retrieve a list of recently played episodes with metadata."""
+    def _clean_enclosure_urls(self) -> None:
+        """Clean and normalize enclosure URLs by removing query parameters."""
+        # Update episodes table
         self.db.execute(
             f"UPDATE {EPISODES} "
             f"SET {ENCLOSURE_URL} = "
@@ -379,6 +404,7 @@ class Datastore:
         )
         self.db.conn.commit()
 
+        # Remove duplicate episodes_extended entries (only for recently_played)
         self.db.execute(
             f"""
             DELETE FROM {EPISODES_EXTENDED} WHERE rowid IN (
@@ -401,6 +427,7 @@ class Datastore:
         )
         self.db.conn.commit()
 
+        # Update episodes_extended table
         self.db.execute(
             f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
             f"SET {ENCLOSURE_URL} = "
@@ -409,36 +436,64 @@ class Datastore:
         )
         self.db.conn.commit()
 
-        fields = [
+    def _clean_enclosure_urls_simple(self) -> None:
+        """Clean enclosure URLs without duplicate removal (for starred/deleted)."""
+        # Update episodes table
+        self.db.execute(
+            f"UPDATE {EPISODES} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+        # Update episodes_extended table
+        self.db.execute(
+            f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
+            f"SET {ENCLOSURE_URL} = "
+            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
+            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+        )
+        self.db.conn.commit()
+
+    def _get_base_fields(self) -> list[str]:
+        """Get the base field list for episode queries."""
+        return [
             f"{EPISODES}.{TITLE}",
             f"{EPISODES}.{URL}",
             f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
             f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
             f"{FEEDS_EXTENDED}.link as link_",
-            f"coalesce({EPISODES_EXTENDED}.description, "
-            "'No description') as description",
+            f"coalesce({EPISODES_EXTENDED}.description, 'No description') as description",
             f"{EPISODES_EXTENDED}.pubDate as pubDate",
             f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
             f"{EPISODES_EXTENDED}.link as 'links.'",
-            f"{USER_UPDATED_DATE}",
-            "starred",
         ]
-        query = (
-            "SELECT "
-            + ", ".join(fields[:-1])
-            + (
-                f", CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred "
-                f"FROM {EPISODES} "
-                f"JOIN {EPISODES_EXTENDED} ON "
-                f"{EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
-                f"JOIN {FEEDS_EXTENDED} "
-                f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
-                f"WHERE played=1 OR progress>300 ORDER BY {USER_UPDATED_DATE} DESC "
-                f"LIMIT 100"
-            )
+
+    def _build_episode_query(
+        self,
+        fields: list[str],
+        where_clause: str,
+        order_by: str,
+    ) -> str:
+        """Build a standardized episode query with joins."""
+        return (
+            "SELECT " + ", ".join(fields) + " "
+            f"FROM {EPISODES} "
+            f"JOIN {EPISODES_EXTENDED} ON "
+            f"{EPISODES}.{ENCLOSURE_URL} = {EPISODES_EXTENDED}.{ENCLOSURE_URL} "
+            f"JOIN {FEEDS_EXTENDED} "
+            f"ON {EPISODES_EXTENDED}.{FEED_XML_URL} = {FEEDS_EXTENDED}.{XML_URL} "
+            f"WHERE {where_clause} ORDER BY {order_by} "
+            f"LIMIT {_DEFAULT_EPISODE_LIMIT}"
         )
 
-        results = self.db.execute(query).fetchall()
+    def _process_query_results(
+        self,
+        results: list[tuple],
+        fields: list[str],
+    ) -> list[dict[str, str]]:
+        """Process query results into a list of dictionaries."""
         return [
             {
                 fields[i].split(" ")[-1].replace("s.", "_").replace("'", ""): v
@@ -447,3 +502,92 @@ class Datastore:
             }
             for result in results
         ]
+
+    def get_recently_played(self) -> list[dict[str, str]]:
+        """Retrieve a list of recently played episodes with metadata."""
+        self._clean_enclosure_urls()
+
+        base_fields = self._get_base_fields()
+        fields = base_fields + [
+            f"{USER_UPDATED_DATE}",
+            f"CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred",
+        ]
+
+        query = self._build_episode_query(
+            fields=fields,
+            where_clause="played=1 OR progress>300",
+            order_by=f"{USER_UPDATED_DATE} DESC",
+        )
+
+        results = self.db.execute(query).fetchall()
+        return self._process_query_results(results, fields)
+
+    def get_starred_episodes(self) -> list[dict[str, str]]:
+        """Retrieve a list of starred episodes with metadata."""
+        self._clean_enclosure_urls_simple()
+
+        base_fields = self._get_base_fields()
+        fields = base_fields + [
+            f"{USER_REC_DATE} as userRecDate",
+            "1 as starred",
+        ]
+
+        query = self._build_episode_query(
+            fields=fields,
+            where_clause=f"{USER_REC_DATE} IS NOT NULL",
+            order_by=f"{USER_REC_DATE} DESC",
+        )
+
+        results = self.db.execute(query).fetchall()
+        return self._process_query_results(results, fields)
+
+    def get_deleted_episodes(self) -> list[dict[str, str]]:
+        """Retrieve a list of deleted episodes with metadata."""
+        self._clean_enclosure_urls_simple()
+
+        base_fields = self._get_base_fields()
+        fields = base_fields + [
+            f"{USER_UPDATED_DATE}",
+            "0 as starred",
+        ]
+
+        query = self._build_episode_query(
+            fields=fields,
+            where_clause="userDeleted=1 AND played=0",
+            order_by=f"{USER_UPDATED_DATE} DESC",
+        )
+
+        results = self.db.execute(query).fetchall()
+        return self._process_query_results(results, fields)
+
+    def cleanup_old_episodes(self) -> None:
+        """Delete episodes older than OVERCAST_LIMIT_DAYS.
+
+        Only deletes if more than 100 episodes exist.
+        """
+        limit_days = None
+        try:
+            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+                limit_days = int(env_limit)
+        except ValueError:
+            pass
+
+        if not limit_days:
+            return
+
+        episode_count = self.db.execute(f"SELECT COUNT(*) FROM {EPISODES}").fetchone()[
+            0
+        ]
+        if episode_count <= _DEFAULT_EPISODE_LIMIT:
+            return
+
+        cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
+            days=int(limit_days),
+        )
+        cutoff_iso = cutoff_date.isoformat()
+
+        self.db.execute(
+            f"DELETE FROM {EPISODES} WHERE {USER_UPDATED_DATE} < ?",
+            [cutoff_iso],
+        )
+        self.db.conn.commit()
