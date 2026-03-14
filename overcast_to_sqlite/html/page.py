@@ -45,6 +45,8 @@ def _generate_html_episodes(
     title: str,
     html_output_path: Path,
     date_field: str = "userUpdatedDate",
+    *,
+    show_starred_icon: bool = True,
 ) -> None:
     """Generate HTML for any list of episodes."""
     this_dir = Path(__file__).parent
@@ -72,8 +74,10 @@ def _generate_html_episodes(
             )
             last_user_updated_date = user_date
 
-        if ep.get("starred") == "1":
+        if show_starred_icon and ep.get("starred") == "1":
             ep["starred"] = "⭐&nbsp;&nbsp;"
+        elif not show_starred_icon:
+            ep["starred"] = ""
 
         try:
             page_vars["episodes"] += episode_template.format_map(ep)

@@ -1,0 +1,8 @@
+- Always run `uv run black src; uv run ruff check src --fix; uv run pyrefly check src; uv run ty check src` after making changes.
+- Run `uv run lizard -Eduplicate src; uv run pytest tests/` after finishing implementation.
+- Any user facing changes (e.g. new CLI flags) should be documented in the `README.md`.
+- Use `uv` not `python` for running scripts.
+- Treat Type Hints as First-Class
+- Prefer Explicitness and Small Functions
+- Use modern Python features e.g. assignment expressions and Structural Pattern Matching where applicable
+- Use a parenthesized tuple of exception classes in the except clause

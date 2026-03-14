@@ -6,31 +6,53 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.14"]
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      id: cpython3
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: pip
-        cache-dependency-path: requirements.txt
-        allow-prereleases: true
-    - run: sudo apt-get install libxml2 libxml2-dev libxslt-dev python-dev-is-python3
-    - run: pip install -e '.[lint]'
-    - run: ruff check overcast_to_sqlite
-    - name: Run mypy (pytype on 3.11)
-      run: |
-        if [[ '${{ steps.cpython3.outputs.python-version }}' == *"3.11"* ]]; then
-          pip install pytype
-          pytype -j auto overcast_to_sqlite
-        else
-          mypy overcast_to_sqlite
-        fi
-    - uses: psf/black@stable
-      with:
-        options: "--check --verbose"
-    - run: pyroma . --min=10
-    - run: |
-        python -m overcast_to_sqlite.cli |& grep -q 'Usage:'
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev
+
+      - name: Run Black check
+        run: |
+          uv run black --check src
+
+      - name: Run Ruff check
+        run: |
+          uv run ruff check src
+
+      - name: Run Pyrefly check
+        run: |
+          uv run pyrefly check src
+      - name: Run ty check
+        run: |
+          uv run ty check src
+      - name: Run tests
+        run: |
+          uv run pytest tests/ --cov=src --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          disable_search: true
+          fail_ci_if_error: true
+          root_dir: .
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true

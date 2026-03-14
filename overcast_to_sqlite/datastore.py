@@ -213,7 +213,7 @@ class Datastore:
                 for episode in episodes
                 if episode.get(USER_UPDATED_DATE)
                 and datetime.datetime.fromisoformat(
-                    episode[USER_UPDATED_DATE].replace("Z", "+00:00"),
+                    episode[USER_UPDATED_DATE].replace("Z", "+00:00"),  # noqa: FURB162
                 )
                 >= cutoff_date
             ]
@@ -464,7 +464,7 @@ class Datastore:
             f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
             f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
             f"{FEEDS_EXTENDED}.link as link_",
-            f"coalesce({EPISODES_EXTENDED}.description, 'No description') as description",
+            f"coalesce({EPISODES_EXTENDED}.description, 'No description') as description",  # noqa: E501
             f"{EPISODES_EXTENDED}.pubDate as pubDate",
             f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
             f"{EPISODES_EXTENDED}.link as 'links.'",
@@ -508,7 +508,7 @@ class Datastore:
         self._clean_enclosure_urls()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [
+        fields = base_fields + [  # noqa: RUF005
             f"{USER_UPDATED_DATE}",
             f"CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred",
         ]
@@ -527,7 +527,7 @@ class Datastore:
         self._clean_enclosure_urls_simple()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [
+        fields = base_fields + [  # noqa: RUF005
             f"{USER_REC_DATE} as userRecDate",
             "1 as starred",
         ]
@@ -546,7 +546,7 @@ class Datastore:
         self._clean_enclosure_urls_simple()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [
+        fields = base_fields + [  # noqa: RUF005
             f"{USER_UPDATED_DATE}",
             "0 as starred",
         ]

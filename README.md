@@ -21,11 +21,11 @@ If you simply want a page showing your recently listened episodes, try out the s
 
 ## How to install
 
-    $ pip install overcast-to-sqlite
+    $ uvx overcast-to-sqlite
 
-Or to upgrade:
+Or install it permanently:
 
-    $ pip install --upgrade overcast-to-sqlite
+    $ uv tool install overcast-to-sqlite
 
 ## Authentication
 

@@ -39,7 +39,7 @@ def _sanitize_for_path(s: str) -> str:
 
 
 def _file_extension_for_type(headers: Mapping, fallback: str) -> str:
-    content_type = fallback.split(";")[0]
+    content_type = fallback.split(";", maxsplit=1)[0]
     try:
         unsafe_content_type: str | None = headers.get("content-type")
         if (
