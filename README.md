@@ -3,8 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/overcast-to-sqlite.svg)](https://pypi.org/project/overcast-to-sqlite/)
 [![Lint](https://github.com/hbmartin/overcast-to-sqlite/actions/workflows/lint.yml/badge.svg)](https://github.com/hbmartin/overcast-to-sqlite/actions/workflows/lint.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Code style: black](https://img.shields.io/badge/🐧️-black-000000.svg)](https://github.com/psf/black)
-[![Checked with pytype](https://img.shields.io/badge/🦆-pytype-437f30.svg)](https://google.github.io/pytype/)
+[![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
 [![Versions](https://img.shields.io/pypi/pyversions/overcast-to-sqlite.svg)](https://pypi.python.org/pypi/overcast-to-sqlite)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hbmartin/overcast-to-sqlite)
 [![twitter](https://img.shields.io/badge/@hmartin-00aced.svg?logo=twitter&logoColor=black)](https://twitter.com/hmartin)
@@ -14,10 +13,16 @@ Save listening history and feed/episode info from Overcast to a SQLite database.
 If you simply want a page showing your recently listened episodes, try out the sister project [overcast-to-pages](https://github.com/hbmartin/overcast-to-pages-template).
 
 - [How to install](#how-to-install)
+- [Commands](#commands)
 - [Authentication](#authentication)
 - [Fetching and saving updates](#fetching-and-saving-updates)
 - [Extending and saving full feeds](#extending-and-saving-full-feeds)
 - [Downloading transcripts](#downloading-transcripts)
+- [Downloading chapters](#downloading-chapters)
+- [Generating HTML pages](#generating-html-pages)
+- [Running all commands](#running-all-commands)
+- [See also](#see-also)
+- [Development](#development)
 
 ## How to install
 
@@ -26,6 +31,20 @@ If you simply want a page showing your recently listened episodes, try out the s
 Or install it permanently:
 
     $ uv tool install overcast-to-sqlite
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `auth` | Save authentication credentials to a JSON file |
+| `save` | Fetch and save Overcast playlists, feeds, and episodes |
+| `extend` | Download XML feeds and extract all tags and attributes |
+| `transcripts` | Download available transcripts for episodes |
+| `chapters` | Download and store available chapters for episodes |
+| `html` | Generate HTML pages for played, starred, and deleted episodes |
+| `all` | Run save, extend, transcripts, and chapters sequentially |
+
+Run `overcast-to-sqlite --help` for a full list of options.
 
 ## Authentication
 
@@ -47,7 +66,7 @@ By default, this saves to `overcast.db` but this can be manually set.
 
     $ overcast-to-sqlite save someother.db
 
-By default, it will attempt to use the info in `auth.json` file is present it will use the cookie from that file. You can point to a different location using `-a`:
+By default, it will use the cookie from `auth.json` if present. You can point to a different location using `-a`:
 
     $ overcast-to-sqlite save -a /path/to/auth.json
 
@@ -81,21 +100,49 @@ Any suggestions for improving on these caveats are welcome, please [open an issu
 
 ## Downloading transcripts
 
-The `transcripts` command that will download the transcripts if available.
+The `transcripts` command downloads available transcripts for episodes.
 
 The `save` and `extend` commands MUST be run prior to this.
 
-Episodes with a "podcast:transcript:url" value will be downloaded from that URL and the download's location will then be stored in "transcriptDownloadPath". 
+Episodes with a "podcast:transcript:url" value will be downloaded from that URL and the download's location will then be stored in "transcriptDownloadPath".
 
     $ overcast-to-sqlite transcripts
 
-Like previous commands, by default this will save transcripts to `archive/transcripts/<feed title>/<episode title>` by default.
+By default this will save transcripts to `archive/transcripts/<feed title>/<episode title>`.
 
 A different path can be set with the `-p`/`--path` flag.
 
 It also supports the `-v` flag to print additional information.
 
 There is also a `-s` flag to only download transcripts for starred episodes.
+
+## Downloading chapters
+
+The `chapters` command downloads and stores available chapters for episodes. The `save` and `extend` commands MUST be run prior to this.
+
+    $ overcast-to-sqlite chapters
+
+By default, chapters are archived to `archive/` adjacent to the database file. A different path can be set with the `-p`/`--path` flag.
+
+## Generating HTML pages
+
+The `html` command generates static HTML pages for recently played, starred, and deleted episodes.
+
+    $ overcast-to-sqlite html
+
+This produces three files: `overcast-played.html`, `overcast-starred.html`, and `overcast-deleted.html` in the same directory as the database file.
+
+A different output directory can be set with the `-o`/`--output` flag:
+
+    $ overcast-to-sqlite html -o /path/to/output/
+
+## Running all commands
+
+The `all` command runs `save`, `extend`, `transcripts`, and `chapters` sequentially in a single invocation:
+
+    $ overcast-to-sqlite all
+
+It supports the same `-a`/`--auth` and `-v`/`--verbose` flags as `save`.
 
 ## See also
 
@@ -113,15 +160,21 @@ Pull requests are very welcome! For major changes, please open an issue first to
 ```bash
 git clone git@github.com:hbmartin/overcast-to-sqlite.git
 cd overcast-to-sqlite
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python -m overcast_to_sqlite.cli all -v
+uv sync --dev
+uv run overcast-to-sqlite all -v
 ```
 
-### Code Formatting
+### Code Formatting and Linting
 
-This project is linted with [ruff](https://docs.astral.sh/ruff/) and uses [Black](https://github.com/ambv/black) code formatting.
+```bash
+uv run black src
+uv run ruff check src --fix
+uv run pyrefly check src
+uv run ty check src
+uv run pytest tests/
+```
+
+This project is linted and formatted with [ruff](https://docs.astral.sh/ruff/). Type checking is done with [pyrefly](https://github.com/facebook/pyrefly) and [ty](https://github.com/astral-sh/ty).
 
 ## Authors
 

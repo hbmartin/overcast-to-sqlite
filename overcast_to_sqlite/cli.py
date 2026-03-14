@@ -39,6 +39,17 @@ def cli() -> None:
     """Save listening history and feed/episode info from Overcast to SQLite."""
 
 
+def _run_auth_flow(auth_path: str) -> None:
+    click.echo("Please login to Overcast")
+    click.echo(
+        f"Your password is not stored but an auth cookie will be saved to {auth_path}",
+    )
+    click.echo()
+    email = click.prompt("Email")
+    password = click.prompt("Password")
+    auth_and_save_cookies(email, password, auth_path)
+
+
 @cli.command()
 @click.option(
     "-a",
@@ -50,14 +61,7 @@ def cli() -> None:
 )
 def auth(auth_path: str) -> None:
     """Save authentication credentials to a JSON file."""
-    click.echo("Please login to Overcast")
-    click.echo(
-        f"Your password is not stored but an auth cookie will be saved to {auth_path}",
-    )
-    click.echo()
-    email = click.prompt("Email")
-    password = click.prompt("Password")
-    auth_and_save_cookies(email, password, auth_path)
+    _run_auth_flow(auth_path)
 
 
 @cli.command()
@@ -128,7 +132,7 @@ def _auth_and_fetch(auth_path: str, archive: Path | None) -> str:
         session = _session_from_cookie(cookie)
     else:
         if not Path(auth_path).exists():
-            auth(auth_path)
+            _run_auth_flow(auth_path)
         session = _session_from_json(auth_path)
     return fetch_opml(session, archive)
 

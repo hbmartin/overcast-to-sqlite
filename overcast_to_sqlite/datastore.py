@@ -1,11 +1,17 @@
-# mypy: disable-error-code="union-attr"
+from __future__ import annotations
 
+# mypy: disable-error-code="union-attr"
 import datetime
 import os
 import sqlite3
-from collections.abc import Iterable
+from typing import TYPE_CHECKING, cast
 
 from sqlite_utils import Database
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from sqlite_utils.db import Table
 
 from .constants import (
     CHAPTERS,
@@ -52,9 +58,20 @@ class Datastore:
         self.db: Database = Database(db_path)
         self._prepare_db()
 
+    def _table(self, name: str) -> Table:
+        """Return a table handle with a concrete type for static checkers."""
+        return cast("Table", self.db[name])
+
+    def _conn(self) -> sqlite3.Connection:
+        """Return the underlying SQLite connection."""
+        if self.db.conn is None:
+            msg = "Database connection is unavailable"
+            raise RuntimeError(msg)
+        return self.db.conn
+
     def _prepare_db(self) -> None:
         if FEEDS not in self.db.table_names():
-            self.db[FEEDS].create(
+            self._table(FEEDS).create(
                 {
                     OVERCAST_ID: int,
                     TITLE: str,
@@ -68,7 +85,7 @@ class Datastore:
                 pk=OVERCAST_ID,
             )
         if FEEDS_EXTENDED not in self.db.table_names():
-            self.db[FEEDS_EXTENDED].create(
+            self._table(FEEDS_EXTENDED).create(
                 {
                     XML_URL: str,
                     TITLE: str,
@@ -80,12 +97,12 @@ class Datastore:
                 pk=XML_URL,
                 foreign_keys=[(XML_URL, FEEDS, XML_URL)],
             )
-            self.db[FEEDS_EXTENDED].enable_fts(
+            self._table(FEEDS_EXTENDED).enable_fts(
                 [TITLE, DESCRIPTION],
                 create_triggers=True,
             )
         if EPISODES not in self.db.table_names():
-            self.db[EPISODES].create(
+            self._table(EPISODES).create(
                 {
                     OVERCAST_ID: int,
                     FEED_ID: int,
@@ -104,7 +121,7 @@ class Datastore:
                 foreign_keys=[(OVERCAST_ID, FEEDS, OVERCAST_ID)],
             )
         if EPISODES_EXTENDED not in self.db.table_names():
-            self.db[EPISODES_EXTENDED].create(
+            self._table(EPISODES_EXTENDED).create(
                 {
                     ENCLOSURE_URL: str,
                     FEED_XML_URL: str,
@@ -119,12 +136,12 @@ class Datastore:
                     (FEED_XML_URL, FEEDS_EXTENDED, XML_URL),
                 ],
             )
-            self.db[EPISODES_EXTENDED].enable_fts(
+            self._table(EPISODES_EXTENDED).enable_fts(
                 [TITLE, DESCRIPTION],
                 create_triggers=True,
             )
         if PLAYLISTS not in self.db.table_names():
-            self.db[PLAYLISTS].create(
+            self._table(PLAYLISTS).create(
                 {
                     TITLE: str,
                     SMART: int,
@@ -134,7 +151,7 @@ class Datastore:
                 pk=TITLE,
             )
         if CHAPTERS not in self.db.table_names():
-            self.db[CHAPTERS].create(
+            self._table(CHAPTERS).create(
                 {
                     ENCLOSURE_URL: str,
                     GUID: str,
@@ -148,11 +165,11 @@ class Datastore:
                     (ENCLOSURE_URL, EPISODES, ENCLOSURE_URL),
                 ],
             )
-            self.db[CHAPTERS].enable_fts(
+            self._table(CHAPTERS).enable_fts(
                 [CONTENT],
                 create_triggers=True,
             )
-            self.db[CHAPTERS].create_index([ENCLOSURE_URL, GUID, SOURCE])
+            self._table(CHAPTERS).create_index([ENCLOSURE_URL, GUID, SOURCE])
         self.db.create_view(
             "episodes_played",
             (
@@ -199,7 +216,7 @@ class Datastore:
         """Upsert feed and episodes into database."""
         limit_days = None
         try:
-            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+            if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
                 limit_days = int(env_limit)
         except ValueError:
             pass
@@ -218,8 +235,8 @@ class Datastore:
                 >= cutoff_date
             ]
 
-        self.db[FEEDS].upsert(feed, pk=OVERCAST_ID)
-        self.db[EPISODES].upsert_all(episodes, pk=OVERCAST_ID)
+        self._table(FEEDS).upsert(feed, pk=OVERCAST_ID)
+        self._table(EPISODES).upsert_all(episodes, pk=OVERCAST_ID)
 
     def save_extended_feed_and_episodes(
         self,
@@ -227,8 +244,8 @@ class Datastore:
         episodes: list[dict],
     ) -> None:
         """Upsert feed info (with new columns) and insert episodes (ignore existing)."""
-        self.db[FEEDS_EXTENDED].upsert(feed, pk=XML_URL, alter=True)
-        self.db[EPISODES_EXTENDED].insert_all(
+        self._table(FEEDS_EXTENDED).upsert(feed, pk=XML_URL, alter=True)
+        self._table(EPISODES_EXTENDED).insert_all(
             episodes,
             pk=ENCLOSURE_URL,
             ignore=True,
@@ -248,7 +265,7 @@ class Datastore:
 
         now = datetime.datetime.now(tz=datetime.UTC).isoformat()
         for feed_id in deleted_ids:
-            self.db[FEEDS].update(feed_id, {"dateRemoveDetected": now})
+            self._table(FEEDS).update(feed_id, {"dateRemoveDetected": now})
 
     def get_feeds_to_extend(self) -> list[tuple[str, str]]:
         """Find feeds with episodes not represented in episodes_extended."""
@@ -269,7 +286,7 @@ class Datastore:
 
     def save_playlist(self, playlist: dict) -> None:
         """Upsert playlist into database."""
-        self.db[PLAYLISTS].upsert(playlist, pk=TITLE)
+        self._table(PLAYLISTS).upsert(playlist, pk=TITLE)
 
     def ensure_transcript_columns(self) -> bool:
         """Ensure transcript columns exist in database.
@@ -280,14 +297,14 @@ class Datastore:
         try:
             self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
         except sqlite3.OperationalError:
-            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+            self._table(EPISODES_EXTENDED).add_column(TRANSCRIPT_DL_PATH, str)
             columns_added = True
         try:
             self.db.execute(
                 f"SELECT {TRANSCRIPT_DL_PATH} FROM {EPISODES_EXTENDED} LIMIT 1",
             )
         except sqlite3.OperationalError:
-            self.db[EPISODES_EXTENDED].add_column(TRANSCRIPT_DL_PATH, str)
+            self._table(EPISODES_EXTENDED).add_column(TRANSCRIPT_DL_PATH, str)
             columns_added = True
         return columns_added
 
@@ -334,7 +351,7 @@ class Datastore:
         transcript_path: str,
     ) -> None:
         """Update episode with transcript download path."""
-        self.db[EPISODES_EXTENDED].update(
+        self._table(EPISODES_EXTENDED).update(
             enclosure,
             {TRANSCRIPT_DL_PATH: transcript_path},
         )
@@ -345,13 +362,14 @@ class Datastore:
         chapters: list[tuple[str, str, str, int, str, str | None, str | None]],
     ) -> None:
         """Insert chapters into the chapters DB table."""
-        self.db.conn.executemany(
+        connection = self._conn()
+        connection.executemany(
             f"INSERT INTO {CHAPTERS} "
             f"({ENCLOSURE_URL}, {GUID}, {SOURCE}, {TIME}, {CONTENT}, {URL}, {IMAGE}) "
             "VALUES (?, ?, ?, ?, ?, ?, ?);",
             chapters,
         )
-        self.db.conn.commit()
+        connection.commit()
 
     def get_description_no_chapters(self) -> Iterable[tuple[str, str, str]]:
         """Find episodes with no chapters."""
@@ -402,7 +420,7 @@ class Datastore:
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
             f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
         )
-        self.db.conn.commit()
+        self._conn().commit()
 
         # Remove duplicate episodes_extended entries (only for recently_played)
         self.db.execute(
@@ -425,7 +443,7 @@ class Datastore:
             )
             """,
         )
-        self.db.conn.commit()
+        self._conn().commit()
 
         # Update episodes_extended table
         self.db.execute(
@@ -434,7 +452,7 @@ class Datastore:
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
             f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
         )
-        self.db.conn.commit()
+        self._conn().commit()
 
     def _clean_enclosure_urls_simple(self) -> None:
         """Clean enclosure URLs without duplicate removal (for starred/deleted)."""
@@ -445,7 +463,7 @@ class Datastore:
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
             f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
         )
-        self.db.conn.commit()
+        self._conn().commit()
 
         # Update episodes_extended table
         self.db.execute(
@@ -454,7 +472,7 @@ class Datastore:
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
             f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
         )
-        self.db.conn.commit()
+        self._conn().commit()
 
     def _get_base_fields(self) -> list[str]:
         """Get the base field list for episode queries."""
@@ -567,7 +585,7 @@ class Datastore:
         """
         limit_days = None
         try:
-            if env_limit := os.getenv("OVERCAST_LIMIT_DAYS") is not None:
+            if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
                 limit_days = int(env_limit)
         except ValueError:
             pass
@@ -590,4 +608,4 @@ class Datastore:
             f"DELETE FROM {EPISODES} WHERE {USER_UPDATED_DATE} < ?",
             [cutoff_iso],
         )
-        self.db.conn.commit()
+        self._conn().commit()
