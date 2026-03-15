@@ -46,7 +46,7 @@ def _run_auth_flow(auth_path: str) -> None:
     )
     click.echo()
     email = click.prompt("Email")
-    password = click.prompt("Password")
+    password = click.prompt("Password", hide_input=True)
     auth_and_save_cookies(email, password, auth_path)
 
 
