@@ -39,7 +39,7 @@ keywords = [
 ]
 
 
-def main():  # noqa: C901, PLR0912, ANN201
+def main() -> None:  # noqa: C901, PLR0912
     pods = [
         _sanitize_for_path(x)
         for x in [
@@ -66,7 +66,9 @@ def main():  # noqa: C901, PLR0912, ANN201
                 content = file.read_text()
                 soup = BeautifulSoup(content, "html.parser")
                 body = soup.find("body")
-                children = body.findChildren()
+                if body is None:
+                    continue
+                children = body.find_all()
                 children = [
                     (children[i], children[i + 1]) for i in range(0, len(children), 2)
                 ]

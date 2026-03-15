@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 from xml.etree import ElementTree
 
 import requests
-from podcast_chapter_tools.entities import Chapter
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from podcast_chapter_tools.entities import Chapter
 
 from .constants import (
     DESCRIPTION,

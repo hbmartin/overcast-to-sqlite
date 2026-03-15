@@ -26,9 +26,11 @@ If you simply want a page showing your recently listened episodes, try out the s
 
 ## How to install
 
+Run it once without installing:
+
     $ uvx overcast-to-sqlite
 
-Or install it permanently:
+Install it permanently if you want `overcast-to-sqlite` available for later commands:
 
     $ uv tool install overcast-to-sqlite
 
@@ -136,6 +138,8 @@ A different output directory can be set with the `-o`/`--output` flag:
 
     $ overcast-to-sqlite html -o /path/to/output/
 
+The directory passed to `--output` is created if it does not already exist.
+
 ## Running all commands
 
 The `all` command runs `save`, `extend`, `transcripts`, and `chapters` sequentially in a single invocation:
@@ -167,10 +171,10 @@ uv run overcast-to-sqlite all -v
 ### Code Formatting and Linting
 
 ```bash
-uv run black src
-uv run ruff check src --fix
-uv run pyrefly check src
-uv run ty check src
+uv run black overcast_to_sqlite
+uv run ruff check overcast_to_sqlite --fix
+uv run pyrefly check overcast_to_sqlite
+uv run ty check overcast_to_sqlite
 uv run pytest tests/
 ```
 

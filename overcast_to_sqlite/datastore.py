@@ -50,6 +50,16 @@ from .constants import (
 _DEFAULT_EPISODE_LIMIT = 100
 
 
+def _overcast_limit_days() -> int | None:
+    """Return the configured episode retention window in days."""
+    try:
+        if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
+            return int(env_limit)
+    except ValueError:
+        return None
+    return None
+
+
 class Datastore:
     """Object responsible for all database interactions."""
 
@@ -214,25 +224,15 @@ class Datastore:
         episodes: list[dict],
     ) -> None:
         """Upsert feed and episodes into database."""
-        limit_days = None
-        try:
-            if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
-                limit_days = int(env_limit)
-        except ValueError:
-            pass
-
-        if limit_days:
+        if (limit_days := _overcast_limit_days()) is not None:
             cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
-                days=int(limit_days),
+                days=limit_days,
             )
             episodes = [
                 episode
                 for episode in episodes
-                if episode.get(USER_UPDATED_DATE)
-                and datetime.datetime.fromisoformat(
-                    episode[USER_UPDATED_DATE].replace("Z", "+00:00"),  # noqa: FURB162
-                )
-                >= cutoff_date
+                if (user_updated_date := episode.get(USER_UPDATED_DATE)) is not None
+                and datetime.datetime.fromisoformat(user_updated_date) >= cutoff_date
             ]
 
         self._table(FEEDS).upsert(feed, pk=OVERCAST_ID)
@@ -482,7 +482,10 @@ class Datastore:
             f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
             f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
             f"{FEEDS_EXTENDED}.link as link_",
-            f"coalesce({EPISODES_EXTENDED}.description, 'No description') as description",  # noqa: E501
+            (
+                f"coalesce({EPISODES_EXTENDED}.description, "
+                f"'No description') as description"
+            ),
             f"{EPISODES_EXTENDED}.pubDate as pubDate",
             f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
             f"{EPISODES_EXTENDED}.link as 'links.'",
@@ -510,7 +513,7 @@ class Datastore:
         self,
         results: list[tuple],
         fields: list[str],
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, object]]:
         """Process query results into a list of dictionaries."""
         return [
             {
@@ -521,12 +524,13 @@ class Datastore:
             for result in results
         ]
 
-    def get_recently_played(self) -> list[dict[str, str]]:
+    def get_recently_played(self) -> list[dict[str, object]]:
         """Retrieve a list of recently played episodes with metadata."""
         self._clean_enclosure_urls()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [  # noqa: RUF005
+        fields = [
+            *base_fields,
             f"{USER_UPDATED_DATE}",
             f"CASE WHEN {USER_REC_DATE} IS NOT NULL THEN 1 ELSE 0 END AS starred",
         ]
@@ -538,14 +542,15 @@ class Datastore:
         )
 
         results = self.db.execute(query).fetchall()
-        return self._process_query_results(results, fields)
+        return self._process_query_results(results=results, fields=fields)
 
-    def get_starred_episodes(self) -> list[dict[str, str]]:
+    def get_starred_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of starred episodes with metadata."""
         self._clean_enclosure_urls_simple()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [  # noqa: RUF005
+        fields = [
+            *base_fields,
             f"{USER_REC_DATE} as userRecDate",
             "1 as starred",
         ]
@@ -557,14 +562,15 @@ class Datastore:
         )
 
         results = self.db.execute(query).fetchall()
-        return self._process_query_results(results, fields)
+        return self._process_query_results(results=results, fields=fields)
 
-    def get_deleted_episodes(self) -> list[dict[str, str]]:
+    def get_deleted_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of deleted episodes with metadata."""
         self._clean_enclosure_urls_simple()
 
         base_fields = self._get_base_fields()
-        fields = base_fields + [  # noqa: RUF005
+        fields = [
+            *base_fields,
             f"{USER_UPDATED_DATE}",
             "0 as starred",
         ]
@@ -576,21 +582,14 @@ class Datastore:
         )
 
         results = self.db.execute(query).fetchall()
-        return self._process_query_results(results, fields)
+        return self._process_query_results(results=results, fields=fields)
 
     def cleanup_old_episodes(self) -> None:
         """Delete episodes older than OVERCAST_LIMIT_DAYS.
 
         Only deletes if more than 100 episodes exist.
         """
-        limit_days = None
-        try:
-            if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
-                limit_days = int(env_limit)
-        except ValueError:
-            pass
-
-        if not limit_days:
+        if (limit_days := _overcast_limit_days()) is None:
             return
 
         episode_count = self.db.execute(f"SELECT COUNT(*) FROM {EPISODES}").fetchone()[
@@ -600,7 +599,7 @@ class Datastore:
             return
 
         cutoff_date = datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(
-            days=int(limit_days),
+            days=limit_days,
         )
         cutoff_iso = cutoff_date.isoformat()
 
