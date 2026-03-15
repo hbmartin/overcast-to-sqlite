@@ -21,6 +21,9 @@ If you simply want a page showing your recently listened episodes, try out the s
 - [Downloading chapters](#downloading-chapters)
 - [Generating HTML pages](#generating-html-pages)
 - [Running all commands](#running-all-commands)
+- [Listening statistics](#listening-statistics)
+- [Searching](#searching)
+- [Database schema](#database-schema)
 - [See also](#see-also)
 - [Development](#development)
 
@@ -45,6 +48,8 @@ Install it permanently if you want `overcast-to-sqlite` available for later comm
 | `chapters` | Download and store available chapters for episodes |
 | `html` | Generate HTML pages for played, starred, and deleted episodes |
 | `all` | Run save, extend, transcripts, and chapters sequentially |
+| `stats` | Show listening statistics |
+| `search` | Search episodes, feeds, and chapters using full-text search |
 
 Run `overcast-to-sqlite --help` for a full list of options.
 
@@ -147,6 +152,66 @@ The `all` command runs `save`, `extend`, `transcripts`, and `chapters` sequentia
     $ overcast-to-sqlite all
 
 It supports the same `-a`/`--auth` and `-v`/`--verbose` flags as `save`.
+
+## Listening statistics
+
+The `stats` command shows a summary of your listening habits:
+
+    $ overcast-to-sqlite stats
+
+This displays total episodes played, total listening time, starred episodes, subscribed/removed feeds, and top podcasts ranked by episode count and listening time.
+
+## Searching
+
+The `search` command performs full-text search across episodes, feeds, and chapters. The `save` and `extend` commands must be run prior to this.
+
+    $ overcast-to-sqlite search "machine learning"
+
+Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category (default: 20).
+
+    $ overcast-to-sqlite search "interview" -l 5
+
+## Database schema
+
+### Core tables
+
+| Table | Primary Key | Description |
+|-------|------------|-------------|
+| `feeds` | `overcastId` | Podcast feed metadata from Overcast |
+| `episodes` | `overcastId` | Episode metadata and listening history |
+| `playlists` | `title` | User-created playlists |
+| `feeds_extended` | `xmlUrl` | Full RSS feed metadata (from `extend`) |
+| `episodes_extended` | `enclosureUrl` | Full episode metadata from RSS (from `extend`) |
+| `chapters` | (auto) | Episode chapter markers (from `chapters`) |
+
+### Key columns
+
+**feeds**: `overcastId`, `title`, `subscribed`, `overcastAddedDate`, `notifications`, `xmlUrl`, `htmlUrl`, `dateRemoveDetected`
+
+**episodes**: `overcastId`, `feedId` (FK to feeds), `title`, `url`, `overcastUrl`, `played`, `progress` (seconds), `enclosureUrl`, `userUpdatedDate`, `userRecommendedDate` (starred date), `pubDate`, `userDeleted`
+
+**feeds_extended**: `xmlUrl` (FK to feeds), `title`, `description`, `lastUpdated`, `link`, `guid`, plus dynamic columns from RSS XML
+
+**episodes_extended**: `enclosureUrl` (FK to episodes), `feedXmlUrl` (FK to feeds_extended), `title`, `description`, `link`, `guid`, plus dynamic columns from RSS XML
+
+**chapters**: `enclosureUrl` (FK to episodes), `guid`, `source`, `time` (seconds), `content`, `url`, `image`
+
+### Views
+
+| View | Description |
+|------|-------------|
+| `episodes_played` | Episodes where `played=1` or `progress > 300` |
+| `episodes_starred` | Episodes with a `userRecommendedDate` |
+| `episodes_deleted` | Episodes marked deleted but not played |
+
+### Full-text search indexes
+
+FTS5 indexes are available on:
+- `feeds_extended` (`title`, `description`)
+- `episodes_extended` (`title`, `description`)
+- `chapters` (`content`)
+
+These are queried by the `search` command, or directly via SQL with `MATCH` syntax.
 
 ## See also
 

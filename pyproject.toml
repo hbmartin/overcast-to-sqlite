@@ -78,6 +78,7 @@ lint.ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "
 "overcast_to_sqlite/more_itertools.py" = ["RET505", "EM101", "TRY003", "ANN202", "D415", "D400", "ANN001", "FBT002", "ANN201"]
 "overcast_to_sqlite/episode.py" = ["SIM102"]
 "overcast_to_sqlite/html/htmltagfixer.py" = ["ANN001", "ANN201", "ANN204"]
+"overcast_to_sqlite/models.py" = ["N815"]
 "tests/*" = ["ANN001", "ANN201", "ARG001", "INP001", "PTH123", "PTH208", "PT001", "PT006", "PT007", "RET504", "S101", "SIM115", "SIM300"]
 
 [tool.ruff.format]

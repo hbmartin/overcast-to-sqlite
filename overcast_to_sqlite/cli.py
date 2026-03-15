@@ -110,17 +110,17 @@ def save(
 
     for playlist in extract_playlists_from_opml(root):
         if verbose:
-            print(f"▶️Saving playlist: {playlist['title']}")
+            print(f"▶️Saving playlist: {playlist.title}")
         db.save_playlist(playlist)
 
     for feed, episodes in extract_feed_and_episodes_from_opml(root):
         if not episodes:
             if verbose:
-                print(f"⚠️Skipping {feed[TITLE]} (no episodes)")
+                print(f"⚠️Skipping {feed.title} (no episodes)")
             continue
         if verbose:
-            print(f"⤵️Saving {feed[TITLE]} (latest: {episodes[0][TITLE]})")
-        ingested_feed_ids.add(feed["overcastId"])
+            print(f"⤵️Saving {feed.title} (latest: {episodes[0].title})")
+        ingested_feed_ids.add(feed.overcastId)
         db.save_feed_and_episodes(feed, episodes)
 
     db.mark_feed_removed_if_missing(ingested_feed_ids)
@@ -383,6 +383,97 @@ def save_extend_download(
         db_path=db_path,
         archive_path=None,
     )
+
+
+def _format_duration(seconds: int) -> str:
+    """Format seconds as a human-readable duration string."""
+    hours, remainder = divmod(seconds, 3600)
+    minutes = remainder // 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+def stats(db_path: str) -> None:
+    """Show listening statistics."""
+    db = Datastore(db_path)
+    listening_stats = db.get_listening_stats()
+
+    print("Listening Statistics")
+    print("=" * 40)
+    print(f"  Episodes played:      {listening_stats['episodes_played']:,}")
+    print(f"  Episodes starred:     {listening_stats['episodes_starred']:,}")
+    print(
+        f"  Total listening time: "
+        f"{_format_duration(listening_stats['total_progress_seconds'])}",
+    )
+    print(f"  Feeds subscribed:     {listening_stats['feeds_subscribed']:,}")
+    print(f"  Feeds removed:        {listening_stats['feeds_removed']:,}")
+
+    top_episodes = db.get_top_podcasts_by_episodes()
+    if top_episodes:
+        print()
+        print("Top Podcasts by Episodes Played")
+        print("-" * 40)
+        for i, (title, count) in enumerate(top_episodes, 1):
+            print(f"  {i:2}. {title:<30} {count:>5}")
+
+    top_time = db.get_top_podcasts_by_time()
+    if top_time:
+        print()
+        print("Top Podcasts by Listening Time")
+        print("-" * 40)
+        for i, (title, seconds) in enumerate(top_time, 1):
+            print(f"  {i:2}. {title:<30} {_format_duration(seconds):>10}")
+
+
+@cli.command()
+@click.argument("query")
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-l",
+    "--limit",
+    default=20,
+    type=int,
+    help="Maximum number of results per category",
+)
+def search(query: str, db_path: str, limit: int) -> None:
+    """Search episodes, feeds, and chapters using full-text search."""
+    db = Datastore(db_path)
+
+    episodes = db.search_episodes(query=query, limit=limit)
+    feeds = db.search_feeds(query=query, limit=limit)
+    chapters = db.search_chapters(query=query, limit=limit)
+
+    if not episodes and not feeds and not chapters:
+        print(f"No results found for '{query}'")
+        return
+
+    if episodes:
+        print(f"\nEpisodes ({len(episodes)} results)")
+        for ep_title, feed_title in episodes:
+            feed = feed_title or "Unknown"
+            print(f'  "{ep_title}" -- {feed}')
+
+    if feeds:
+        print(f"\nFeeds ({len(feeds)} results)")
+        for (feed_title,) in feeds:
+            print(f"  {feed_title}")
+
+    if chapters:
+        print(f"\nChapters ({len(chapters)} results)")
+        for (content,) in chapters:
+            print(f"  {content}")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
     from sqlite_utils.db import Table
 
+    from .models import Episode, Feed, Playlist
+
 from .constants import (
     CHAPTERS,
     CONTENT,
@@ -220,8 +222,8 @@ class Datastore:
 
     def save_feed_and_episodes(
         self,
-        feed: dict,
-        episodes: list[dict],
+        feed: Feed,
+        episodes: list[Episode],
     ) -> None:
         """Upsert feed and episodes into database."""
         if (limit_days := _overcast_limit_days()) is not None:
@@ -231,12 +233,16 @@ class Datastore:
             episodes = [
                 episode
                 for episode in episodes
-                if (user_updated_date := episode.get(USER_UPDATED_DATE)) is not None
-                and datetime.datetime.fromisoformat(user_updated_date) >= cutoff_date
+                if episode.userUpdatedDate is not None
+                and datetime.datetime.fromisoformat(episode.userUpdatedDate)
+                >= cutoff_date
             ]
 
-        self._table(FEEDS).upsert(feed, pk=OVERCAST_ID)
-        self._table(EPISODES).upsert_all(episodes, pk=OVERCAST_ID)
+        self._table(FEEDS).upsert(feed.to_dict(), pk=OVERCAST_ID)
+        self._table(EPISODES).upsert_all(
+            [e.to_dict() for e in episodes],
+            pk=OVERCAST_ID,
+        )
 
     def save_extended_feed_and_episodes(
         self,
@@ -284,9 +290,9 @@ class Datastore:
             f"GROUP BY {EPISODES}.{FEED_ID};",
         ).fetchall()
 
-    def save_playlist(self, playlist: dict) -> None:
+    def save_playlist(self, playlist: Playlist) -> None:
         """Upsert playlist into database."""
-        self._table(PLAYLISTS).upsert(playlist, pk=TITLE)
+        self._table(PLAYLISTS).upsert(playlist.to_dict(), pk=TITLE)
 
     def ensure_transcript_columns(self) -> bool:
         """Ensure transcript columns exist in database.
@@ -411,9 +417,8 @@ class Datastore:
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )
 
-    def _clean_enclosure_urls(self) -> None:
+    def _clean_enclosure_urls(self, *, deduplicate: bool = False) -> None:
         """Clean and normalize enclosure URLs by removing query parameters."""
-        # Update episodes table
         self.db.execute(
             f"UPDATE {EPISODES} "
             f"SET {ENCLOSURE_URL} = "
@@ -422,50 +427,31 @@ class Datastore:
         )
         self._conn().commit()
 
-        # Remove duplicate episodes_extended entries (only for recently_played)
-        self.db.execute(
-            f"""
-            DELETE FROM {EPISODES_EXTENDED} WHERE rowid IN (
-                SELECT t1.rowid
-                FROM {EPISODES_EXTENDED} t1
-                JOIN (
-                    SELECT
-                        substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1)
-                        AS base_url,
-                        MIN(rowid) AS min_rowid
-                    FROM {EPISODES_EXTENDED}
-                    WHERE {ENCLOSURE_URL} LIKE '%?%'
-                    GROUP BY base_url
-                ) t2 ON
-                substr(t1.{ENCLOSURE_URL}, 1, instr(t1.{ENCLOSURE_URL}, '?') - 1)
-                = t2.base_url
-                WHERE  t1.rowid > t2.min_rowid
+        if deduplicate:
+            self.db.execute(
+                f"""
+                DELETE FROM {EPISODES_EXTENDED} WHERE rowid IN (
+                    SELECT t1.rowid
+                    FROM {EPISODES_EXTENDED} t1
+                    JOIN (
+                        SELECT
+                            substr({ENCLOSURE_URL}, 1,
+                                   instr({ENCLOSURE_URL}, '?') - 1)
+                            AS base_url,
+                            MIN(rowid) AS min_rowid
+                        FROM {EPISODES_EXTENDED}
+                        WHERE {ENCLOSURE_URL} LIKE '%?%'
+                        GROUP BY base_url
+                    ) t2 ON
+                    substr(t1.{ENCLOSURE_URL}, 1,
+                           instr(t1.{ENCLOSURE_URL}, '?') - 1)
+                    = t2.base_url
+                    WHERE  t1.rowid > t2.min_rowid
+                )
+                """,
             )
-            """,
-        )
-        self._conn().commit()
+            self._conn().commit()
 
-        # Update episodes_extended table
-        self.db.execute(
-            f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
-            f"SET {ENCLOSURE_URL} = "
-            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
-            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
-        )
-        self._conn().commit()
-
-    def _clean_enclosure_urls_simple(self) -> None:
-        """Clean enclosure URLs without duplicate removal (for starred/deleted)."""
-        # Update episodes table
-        self.db.execute(
-            f"UPDATE {EPISODES} "
-            f"SET {ENCLOSURE_URL} = "
-            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
-            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
-        )
-        self._conn().commit()
-
-        # Update episodes_extended table
         self.db.execute(
             f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
             f"SET {ENCLOSURE_URL} = "
@@ -526,7 +512,7 @@ class Datastore:
 
     def get_recently_played(self) -> list[dict[str, object]]:
         """Retrieve a list of recently played episodes with metadata."""
-        self._clean_enclosure_urls()
+        self._clean_enclosure_urls(deduplicate=True)
 
         base_fields = self._get_base_fields()
         fields = [
@@ -546,7 +532,7 @@ class Datastore:
 
     def get_starred_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of starred episodes with metadata."""
-        self._clean_enclosure_urls_simple()
+        self._clean_enclosure_urls()
 
         base_fields = self._get_base_fields()
         fields = [
@@ -566,7 +552,7 @@ class Datastore:
 
     def get_deleted_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of deleted episodes with metadata."""
-        self._clean_enclosure_urls_simple()
+        self._clean_enclosure_urls()
 
         base_fields = self._get_base_fields()
         fields = [
@@ -608,3 +594,125 @@ class Datastore:
             [cutoff_iso],
         )
         self._conn().commit()
+
+    # STATS
+
+    def get_listening_stats(self) -> dict[str, int]:
+        """Get aggregate listening statistics."""
+        played = self.db.execute(
+            f"SELECT COUNT(*) FROM {EPISODES} WHERE played=1",
+        ).fetchone()[0]
+
+        total_progress = self.db.execute(
+            f"SELECT COALESCE(SUM({PROGRESS}), 0) FROM {EPISODES} "
+            f"WHERE {PROGRESS} > 0",
+        ).fetchone()[0]
+
+        feeds_subscribed = self.db.execute(
+            f"SELECT COUNT(*) FROM {FEEDS} WHERE subscribed=1",
+        ).fetchone()[0]
+
+        feeds_removed = self.db.execute(
+            f"SELECT COUNT(*) FROM {FEEDS} WHERE dateRemoveDetected IS NOT NULL",
+        ).fetchone()[0]
+
+        starred = self.db.execute(
+            f"SELECT COUNT(*) FROM {EPISODES} WHERE {USER_REC_DATE} IS NOT NULL",
+        ).fetchone()[0]
+
+        return {
+            "episodes_played": played,
+            "total_progress_seconds": total_progress,
+            "feeds_subscribed": feeds_subscribed,
+            "feeds_removed": feeds_removed,
+            "episodes_starred": starred,
+        }
+
+    def get_top_podcasts_by_episodes(
+        self,
+        limit: int = 10,
+    ) -> list[tuple[str, int]]:
+        """Get top podcasts ranked by number of played episodes."""
+        return self.db.execute(
+            f"SELECT {FEEDS}.{TITLE}, COUNT(*) as count "
+            f"FROM {EPISODES} "
+            f"JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+            f"WHERE played=1 "
+            f"GROUP BY {EPISODES}.{FEED_ID} "
+            f"ORDER BY count DESC LIMIT ?",
+            [limit],
+        ).fetchall()
+
+    def get_top_podcasts_by_time(
+        self,
+        limit: int = 10,
+    ) -> list[tuple[str, int]]:
+        """Get top podcasts ranked by total listening time."""
+        return self.db.execute(
+            f"SELECT {FEEDS}.{TITLE}, "
+            f"COALESCE(SUM({PROGRESS}), 0) as total_time "
+            f"FROM {EPISODES} "
+            f"JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+            f"WHERE {PROGRESS} > 0 "
+            f"GROUP BY {EPISODES}.{FEED_ID} "
+            f"ORDER BY total_time DESC LIMIT ?",
+            [limit],
+        ).fetchall()
+
+    # SEARCH
+
+    def search_episodes(
+        self,
+        query: str,
+        limit: int = 20,
+    ) -> list[tuple[str, str]]:
+        """Search episodes using full-text search."""
+        try:
+            return self.db.execute(
+                f"SELECT ee.{TITLE}, fe.{TITLE} "
+                f"FROM {EPISODES_EXTENDED}_fts fts "
+                f"JOIN {EPISODES_EXTENDED} ee ON ee.rowid = fts.rowid "
+                f"LEFT JOIN {FEEDS_EXTENDED} fe "
+                f"ON ee.{FEED_XML_URL} = fe.{XML_URL} "
+                f"WHERE {EPISODES_EXTENDED}_fts MATCH ? "
+                f"ORDER BY fts.rank LIMIT ?",
+                [query, limit],
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
+
+    def search_feeds(
+        self,
+        query: str,
+        limit: int = 20,
+    ) -> list[tuple[str]]:
+        """Search feeds using full-text search."""
+        try:
+            return self.db.execute(
+                f"SELECT fe.{TITLE} "
+                f"FROM {FEEDS_EXTENDED}_fts fts "
+                f"JOIN {FEEDS_EXTENDED} fe ON fe.rowid = fts.rowid "
+                f"WHERE {FEEDS_EXTENDED}_fts MATCH ? "
+                f"ORDER BY fts.rank LIMIT ?",
+                [query, limit],
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
+
+    def search_chapters(
+        self,
+        query: str,
+        limit: int = 20,
+    ) -> list[tuple[str]]:
+        """Search chapters using full-text search."""
+        try:
+            return self.db.execute(
+                f"SELECT ch.{CONTENT} "
+                f"FROM {CHAPTERS}_fts fts "
+                f"JOIN {CHAPTERS} ch ON ch.rowid = fts.rowid "
+                f"WHERE {CHAPTERS}_fts MATCH ? "
+                f"ORDER BY fts.rank LIMIT ?",
+                [query, limit],
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 from requests import Session
 
@@ -19,12 +19,14 @@ from .constants import (
     SORTING,
     TITLE,
     USER_REC_DATE,
+    XML_URL,
 )
 from .exceptions import (
     AuthFailedError,
     OpmlFetchError,
     WrongPasswordError,
 )
+from .models import Episode, Feed, Playlist
 from .utils import _parse_date_or_none
 
 
@@ -89,56 +91,68 @@ def _iso_date_or_none(dictionary: dict, key: str) -> str | None:
     return None
 
 
-def extract_playlists_from_opml(root: Element) -> Iterable[dict]:
+def extract_playlists_from_opml(root: Element) -> Iterable[Playlist]:
     for playlist in root.findall(
         "./body/outline[@text='playlists']/outline[@type='podcast-playlist']",
     ):
         if INCLUDE_PODCAST_IDS in playlist.attrib:
-            yield {
-                TITLE: playlist.attrib[TITLE],
-                SMART: int(playlist.attrib[SMART]),
-                SORTING: playlist.attrib[SORTING],
-                INCLUDE_PODCAST_IDS: f"[{playlist.attrib[INCLUDE_PODCAST_IDS]}]",
-            }
+            yield Playlist(
+                title=playlist.attrib[TITLE],
+                smart=int(playlist.attrib[SMART]),
+                sorting=playlist.attrib[SORTING],
+                includePodcastIds=f"[{playlist.attrib[INCLUDE_PODCAST_IDS]}]",
+            )
 
 
 def extract_feed_and_episodes_from_opml(
     root: Element,
-) -> Iterable[tuple[dict, list[dict]]]:
-    for feed in root.findall("./body/outline[@text='feeds']/outline[@type='rss']"):
-        episodes = []
-        feed_attrs = cast("dict[str, Any]", feed.attrib.copy())
-        feed_attrs[OVERCAST_ID] = int(feed_attrs[OVERCAST_ID])
-        feed_attrs["subscribed"] = feed_attrs.get("subscribed", False) == "1"
-        feed_attrs["notifications"] = feed_attrs.get("notifications", False) == "1"
-        feed_attrs["overcastAddedDate"] = _iso_date_or_none(
-            feed_attrs,
-            "overcastAddedDate",
+) -> Iterable[tuple[Feed, list[Episode]]]:
+    for feed_el in root.findall(
+        "./body/outline[@text='feeds']/outline[@type='rss']",
+    ):
+        attribs = feed_el.attrib
+        feed = Feed(
+            overcastId=int(attribs[OVERCAST_ID]),
+            title=attribs[TITLE],
+            subscribed=attribs.get("subscribed", "0") == "1",
+            notifications=attribs.get("notifications", "0") == "1",
+            xmlUrl=attribs[XML_URL],
+            htmlUrl=attribs.get("htmlUrl", ""),
+            overcastAddedDate=_iso_date_or_none(
+                dict(attribs),
+                "overcastAddedDate",
+            ),
         )
-        del feed_attrs["type"]
-        del feed_attrs["text"]
-
-        for episode_xml in feed.findall("./outline[@type='podcast-episode']"):
-            ep_attrs = cast("dict[str, Any]", episode_xml.attrib.copy())
-            ep_attrs[OVERCAST_ID] = int(ep_attrs[OVERCAST_ID])
-            ep_attrs[ENCLOSURE_URL] = ep_attrs[ENCLOSURE_URL].split("?")[0]
-
-            ep_attrs["feedId"] = feed_attrs["overcastId"]
-            ep_attrs["played"] = ep_attrs.get("played", False) == "1"
-            ep_attrs["userDeleted"] = ep_attrs.get("userDeleted", False) == "1"
-            ep_attrs["progress"] = (
-                None
-                if (progress := ep_attrs.get("progress")) is None
-                else int(progress)
+        episodes = []
+        for episode_xml in feed_el.findall(
+            "./outline[@type='podcast-episode']",
+        ):
+            ep = episode_xml.attrib
+            episodes.append(
+                Episode(
+                    overcastId=int(ep[OVERCAST_ID]),
+                    feedId=feed.overcastId,
+                    title=ep.get(TITLE, ""),
+                    url=ep.get("url", ""),
+                    overcastUrl=ep.get("overcastUrl", ""),
+                    played=ep.get("played", "0") == "1",
+                    userDeleted=ep.get("userDeleted", "0") == "1",
+                    enclosureUrl=ep[ENCLOSURE_URL].split("?")[0],
+                    progress=(
+                        None
+                        if (progress := ep.get("progress")) is None
+                        else int(progress)
+                    ),
+                    userUpdatedDate=_iso_date_or_none(
+                        dict(ep),
+                        "userUpdatedDate",
+                    ),
+                    userRecommendedDate=_iso_date_or_none(
+                        dict(ep),
+                        USER_REC_DATE,
+                    ),
+                    pubDate=_iso_date_or_none(dict(ep), "pubDate"),
+                ),
             )
-            ep_attrs["userUpdatedDate"] = _iso_date_or_none(ep_attrs, "userUpdatedDate")
-            ep_attrs[USER_REC_DATE] = _iso_date_or_none(
-                ep_attrs,
-                USER_REC_DATE,
-            )
-            ep_attrs["pubDate"] = _iso_date_or_none(ep_attrs, "pubDate")
-            del ep_attrs["type"]
 
-            episodes.append(ep_attrs)
-
-        yield feed_attrs, episodes
+        yield feed, episodes
