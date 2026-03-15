@@ -137,6 +137,16 @@ def _auth_and_fetch(auth_path: str, archive: Path | None) -> str:
     return fetch_opml(session, archive)
 
 
+def _html_output_dir(db_path: str, output_path: str | None) -> Path:
+    """Resolve the directory used by the html command output."""
+    if output_path is None:
+        return Path(db_path).parent
+
+    output_dir = Path(output_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
 @cli.command()
 @click.argument(
     "db_path",
@@ -160,7 +170,7 @@ def extend(
     def _fetch_feed_extend_save(feed_url: tuple[str, str]) -> tuple[dict, list[dict]]:
         feed_title, url = feed_url
         title = _sanitize_for_path(feed_title)
-        feed, episodes, chapters = fetch_xml_and_extract(  # noqa: RUF059
+        feed, episodes, _ = fetch_xml_and_extract(
             xml_url=url,
             title=title,
             archive_dir=archive_dir,
@@ -309,14 +319,7 @@ def html(
     output_path: str | None,
 ) -> None:
     """Generate HTML pages for recently played, starred, and deleted episodes."""
-    if output_path:
-        output_dir = (
-            Path(output_path)
-            if Path(output_path).is_dir()
-            else Path(output_path).parent
-        )
-    else:
-        output_dir = Path(db_path).parent
+    output_dir = _html_output_dir(db_path=db_path, output_path=output_path)
 
     played_path = output_dir / "overcast-played.html"
     starred_path = output_dir / "overcast-starred.html"

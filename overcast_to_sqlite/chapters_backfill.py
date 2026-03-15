@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from podcast_chapter_tools.entities import ChapterType
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from podcast_chapter_tools.extractors import (
     extract_description_chapters,
     extract_psc_chapters_from_file,

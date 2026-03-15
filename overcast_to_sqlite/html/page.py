@@ -40,8 +40,15 @@ def _fix_unclosed_html_tags(html_string: str) -> str:
         return html_string
 
 
+def _starred_prefix(starred_value: object, *, show_starred_icon: bool) -> str:
+    """Return the HTML prefix used for starred episodes."""
+    if show_starred_icon and str(starred_value) == "1":
+        return "⭐&nbsp;&nbsp;"
+    return ""
+
+
 def _generate_html_episodes(
-    episodes: list[dict[str, str]],
+    episodes: list[dict[str, object]],
     title: str,
     html_output_path: Path,
     date_field: str = "userUpdatedDate",
@@ -61,11 +68,11 @@ def _generate_html_episodes(
     last_user_updated_date = None
 
     for ep in episodes:
-        ep["episode_title"] = html.escape(ep["episode_title"])
+        ep["episode_title"] = html.escape(str(ep["episode_title"]))
         ep[DESCRIPTION] = _fix_unclosed_html_tags(
-            _convert_urls_to_links(ep[DESCRIPTION]),
+            _convert_urls_to_links(str(ep[DESCRIPTION])),
         )
-        user_date = ep[date_field].split("T")[0] if ep.get(date_field) else ""
+        user_date = str(ep[date_field]).split("T")[0] if ep.get(date_field) else ""
         if last_user_updated_date != user_date and user_date:
             page_vars["episodes"] += (
                 "<h1><script>document.write("
@@ -74,10 +81,10 @@ def _generate_html_episodes(
             )
             last_user_updated_date = user_date
 
-        if show_starred_icon and ep.get("starred") == "1":
-            ep["starred"] = "⭐&nbsp;&nbsp;"
-        elif not show_starred_icon:
-            ep["starred"] = ""
+        ep["starred"] = _starred_prefix(
+            ep.get("starred"),
+            show_starred_icon=show_starred_icon,
+        )
 
         try:
             page_vars["episodes"] += episode_template.format_map(ep)
@@ -90,16 +97,20 @@ def _generate_html_episodes(
 def generate_html_played(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_recently_played()
-    _generate_html_episodes(episodes, "Recently Played", html_output_path)
+    _generate_html_episodes(
+        episodes=episodes,
+        title="Recently Played",
+        html_output_path=html_output_path,
+    )
 
 
 def generate_html_starred(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_starred_episodes()
     _generate_html_episodes(
-        episodes,
-        "Starred Episodes",
-        html_output_path,
+        episodes=episodes,
+        title="Starred Episodes",
+        html_output_path=html_output_path,
         date_field="userRecDate",
     )
 
@@ -108,8 +119,8 @@ def generate_html_deleted(db_path: str, html_output_path: Path) -> None:
     db = Datastore(db_path)
     episodes = db.get_deleted_episodes()
     _generate_html_episodes(
-        episodes,
-        "Deleted Episodes",
-        html_output_path,
+        episodes=episodes,
+        title="Deleted Episodes",
+        html_output_path=html_output_path,
         show_starred_icon=False,
     )

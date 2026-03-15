@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(uv run:*)",
+      "WebFetch(domain:docs.astral.sh)",
+      "Bash(uv pip:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv build:*)"
     ],
     "deny": []
   }

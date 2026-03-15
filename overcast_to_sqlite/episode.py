@@ -1,7 +1,11 @@
-from typing import Any
-from xml.etree import ElementTree
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from podcast_chapter_tools.entities import PCI, PSC, Chapter
+
+if TYPE_CHECKING:
+    from xml.etree import ElementTree
 from podcast_chapter_tools.extractors import (
     extract_description_chapters,
     extract_psc_chapters,
