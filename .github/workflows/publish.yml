@@ -27,5 +27,4 @@ jobs:
         run: uv build
 
       - name: Publish
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         run: uv publish --trusted-publishing always

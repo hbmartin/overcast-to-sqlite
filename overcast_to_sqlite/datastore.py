@@ -52,12 +52,12 @@ _DEFAULT_EPISODE_LIMIT = 100
 
 def _overcast_limit_days() -> int | None:
     """Return the configured episode retention window in days."""
+    if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is None:
+        return None
     try:
-        if (env_limit := os.getenv("OVERCAST_LIMIT_DAYS")) is not None:
-            return int(env_limit)
+        return int(env_limit)
     except ValueError:
         return None
-    return None
 
 
 class Datastore:
@@ -297,7 +297,7 @@ class Datastore:
         try:
             self.db.execute(f"SELECT {TRANSCRIPT_URL} FROM {EPISODES_EXTENDED} LIMIT 1")
         except sqlite3.OperationalError:
-            self._table(EPISODES_EXTENDED).add_column(TRANSCRIPT_DL_PATH, str)
+            self._table(EPISODES_EXTENDED).add_column(TRANSCRIPT_URL, str)
             columns_added = True
         try:
             self.db.execute(

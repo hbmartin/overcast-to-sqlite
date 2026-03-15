@@ -21,6 +21,7 @@ def test_auth_command_prompts_and_saves_cookie(monkeypatch):
     )
 
     assert result.exit_code == 0
+    assert "super-secret" not in result.output
     assert captured["args"] == (
         "listener@example.com",
         "super-secret",

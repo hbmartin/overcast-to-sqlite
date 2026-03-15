@@ -68,10 +68,8 @@ def main() -> None:  # noqa: C901, PLR0912
                 body = soup.find("body")
                 if body is None:
                     continue
-                children = body.find_all()
-                children = [
-                    (children[i], children[i + 1]) for i in range(0, len(children), 2)
-                ]
+                nodes = body.find_all()
+                children = list(zip(nodes[::2], nodes[1::2], strict=False))
 
                 prev_child = None
                 add_next = False

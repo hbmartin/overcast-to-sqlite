@@ -53,7 +53,8 @@ SAMPLE_OPML = textwrap.dedent(
 )
 
 
-def test_save_load_persists_playlist_feed_and_episode():
+def test_save_load_persists_playlist_feed_and_episode(monkeypatch):
+    monkeypatch.delenv("OVERCAST_LIMIT_DAYS", raising=False)
     runner = CliRunner()
 
     with runner.isolated_filesystem():

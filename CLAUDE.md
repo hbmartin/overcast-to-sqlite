@@ -12,8 +12,8 @@
 - Always use pathlib.Path for file operations, never use os.path
 
 # Workflow
-- Always run `uv run black src; uv run ruff check src --fix; uv run pyrefly check src; uv run ty check src` after making changes.
-- Run `uv run lizard -Eduplicate src; uv run pytest tests/` after finishing implementation.
+- Always run `uv run black overcast_to_sqlite; uv run ruff check overcast_to_sqlite --fix; uv run pyrefly check overcast_to_sqlite; uv run ty check overcast_to_sqlite` after making changes.
+- Run `uv run lizard -Eduplicate overcast_to_sqlite; uv run pytest tests/` after finishing implementation.
 - Any user facing changes (e.g. new CLI flags) should be documented in the `README.md`.
 - Use `uv` not `python` for running scripts.
 - Treat Type Hints as First-Class
