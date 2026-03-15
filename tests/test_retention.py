@@ -3,8 +3,8 @@ import sqlite3
 from typing import Self
 
 from overcast_to_sqlite import datastore
-from overcast_to_sqlite.constants import OVERCAST_ID
 from overcast_to_sqlite.datastore import Datastore
+from overcast_to_sqlite.models import Episode, Feed
 
 
 class _FixedDateTime(datetime.datetime):
@@ -13,22 +13,29 @@ class _FixedDateTime(datetime.datetime):
         return cls(2025, 1, 2, tzinfo=tz or datetime.UTC)
 
 
-def _feed() -> dict[str, object]:
-    return {
-        OVERCAST_ID: 1,
-        "title": "Example Feed",
-    }
+def _feed() -> Feed:
+    return Feed(
+        overcastId=1,
+        title="Example Feed",
+        subscribed=True,
+        notifications=False,
+        xmlUrl="https://example.com/feed.xml",
+        htmlUrl="https://example.com",
+    )
 
 
-def _episode(overcast_id: int, user_updated_date: str) -> dict[str, object]:
-    return {
-        OVERCAST_ID: overcast_id,
-        "enclosureUrl": f"https://example.com/{overcast_id}.mp3",
-        "feedId": 1,
-        "title": f"Episode {overcast_id}",
-        "url": f"https://example.com/{overcast_id}",
-        "userUpdatedDate": user_updated_date,
-    }
+def _episode(overcast_id: int, user_updated_date: str) -> Episode:
+    return Episode(
+        overcastId=overcast_id,
+        feedId=1,
+        title=f"Episode {overcast_id}",
+        url=f"https://example.com/{overcast_id}",
+        overcastUrl=f"https://overcast.fm/+{overcast_id}",
+        played=False,
+        userDeleted=False,
+        enclosureUrl=f"https://example.com/{overcast_id}.mp3",
+        userUpdatedDate=user_updated_date,
+    )
 
 
 def test_save_feed_and_episodes_filters_when_limit_is_zero(monkeypatch, tmp_path):
