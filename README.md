@@ -163,11 +163,11 @@ This displays total episodes played, total listening time, starred episodes, sub
 
 ## Searching
 
-The `search` command performs full-text search across episodes, feeds, and chapters. The `save` and `extend` commands must be run prior to this.
+The `search` command performs full-text search across episodes, feeds, and chapters. Run `save` and `extend` first, and run `chapters` as well if you want chapter results.
 
     $ overcast-to-sqlite search "machine learning"
 
-Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category (default: 20).
+Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category with a positive integer (default: 20).
 
     $ overcast-to-sqlite search "interview" -l 5
 
@@ -188,7 +188,7 @@ Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l
 
 **feeds**: `overcastId`, `title`, `subscribed`, `overcastAddedDate`, `notifications`, `xmlUrl`, `htmlUrl`, `dateRemoveDetected`
 
-**episodes**: `overcastId`, `feedId` (FK to feeds), `title`, `url`, `overcastUrl`, `played`, `progress` (seconds), `enclosureUrl`, `userUpdatedDate`, `userRecommendedDate` (starred date), `pubDate`, `userDeleted`
+**episodes**: `overcastId`, `feedId`, `title`, `url`, `overcastUrl`, `played`, `progress` (seconds), `enclosureUrl`, `userUpdatedDate`, `userRecommendedDate` (starred date), `pubDate`, `userDeleted`
 
 **feeds_extended**: `xmlUrl` (FK to feeds), `title`, `description`, `lastUpdated`, `link`, `guid`, plus dynamic columns from RSS XML
 

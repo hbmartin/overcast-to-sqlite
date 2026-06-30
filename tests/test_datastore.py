@@ -131,6 +131,21 @@ def test_get_listening_stats_starred(tmp_path):
     assert listening_stats["episodes_starred"] == 2
 
 
+def test_get_listening_stats_counts_progress_threshold(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(
+        _make_feed(),
+        [
+            _make_episode(overcast_id=1, played=False, progress=301),
+            _make_episode(overcast_id=2, played=False, progress=299),
+        ],
+    )
+
+    listening_stats = store.get_listening_stats()
+    assert listening_stats["episodes_played"] == 1
+
+
 def test_get_top_podcasts_by_episodes(tmp_path):
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
@@ -167,6 +182,21 @@ def test_get_top_podcasts_by_time(tmp_path):
     assert len(top) == 1
     assert top[0][0] == "Test Feed"
     assert top[0][1] == 10_800
+
+
+def test_get_top_podcasts_by_episodes_counts_progress_threshold(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(
+        _make_feed(title="Threshold Feed"),
+        [
+            _make_episode(overcast_id=1, played=False, progress=301),
+            _make_episode(overcast_id=2, played=False, progress=120),
+        ],
+    )
+
+    top = store.get_top_podcasts_by_episodes(limit=1)
+    assert top == [("Threshold Feed", 1)]
 
 
 def test_search_episodes_empty_db(tmp_path):
@@ -221,6 +251,30 @@ def test_search_episodes_with_data(tmp_path):
     assert results[0][0] == "Machine Learning Basics"
 
 
+def test_search_episodes_quotes_punctuation_heavy_query(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed.xml",
+            "title": "Tech Podcast",
+            "description": "About technology",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3",
+                "feedXmlUrl": "https://example.com/feed.xml",
+                "title": "foo-bar",
+                "description": "Learn foo-bar fundamentals",
+            },
+        ],
+    )
+
+    results = store.search_episodes("foo-bar")
+    assert results == [("foo-bar", "Tech Podcast")]
+
+
 def test_search_feeds_with_data(tmp_path):
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
@@ -249,3 +303,183 @@ def test_get_listening_stats_empty_db(tmp_path):
     assert listening_stats["feeds_subscribed"] == 0
     assert listening_stats["feeds_removed"] == 0
     assert listening_stats["episodes_starred"] == 0
+
+
+def test_search_methods_return_empty_for_non_positive_limits(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+
+    assert store.get_top_podcasts_by_episodes(limit=0) == []
+    assert store.get_top_podcasts_by_time(limit=-1) == []
+    assert store.search_episodes("test", limit=0) == []
+    assert store.search_feeds("test", limit=-1) == []
+    assert store.search_chapters("test", limit=0) == []
+
+
+def test_get_recently_played_deduplicates_clean_and_query_param_urls(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(_make_feed(), [_make_episode(overcast_id=1)])
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed-1.xml",
+            "title": "Tech Podcast",
+            "description": "About technology",
+            "link": "https://example.com/feed-1",
+            "itunes:image:href": "https://example.com/feed-1.png",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3",
+                "feedXmlUrl": "https://example.com/feed-1.xml",
+                "title": "Episode 1",
+                "description": "Clean enclosure URL",
+                "link": "https://example.com/episodes/1",
+                "itunes:image:href": "https://example.com/episodes/1.png",
+                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
+            },
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3?source=feed",
+                "feedXmlUrl": "https://example.com/feed-1.xml",
+                "title": "Episode 1 duplicate",
+                "description": "Duplicate enclosure URL with query params",
+                "link": "https://example.com/episodes/1-duplicate",
+                "itunes:image:href": "https://example.com/episodes/1-duplicate.png",
+                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
+            },
+        ],
+    )
+
+    results = store.get_recently_played()
+
+    with sqlite3.connect(db_path) as conn:
+        urls = conn.execute(
+            "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
+        ).fetchall()
+
+    assert len(results) == 1
+    assert urls == [("https://cdn.example.com/1.mp3",)]
+
+
+def test_get_recently_played_normalizes_query_param_extended_url(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(_make_feed(), [_make_episode(overcast_id=1)])
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed-1.xml",
+            "title": "Tech Podcast",
+            "description": "About technology",
+            "link": "https://example.com/feed-1",
+            "itunes:image:href": "https://example.com/feed-1.png",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3?source=feed",
+                "feedXmlUrl": "https://example.com/feed-1.xml",
+                "title": "Episode 1",
+                "description": "Query parameter enclosure URL",
+                "link": "https://example.com/episodes/1",
+                "itunes:image:href": "https://example.com/episodes/1.png",
+                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
+            },
+        ],
+    )
+
+    results = store.get_recently_played()
+
+    with sqlite3.connect(db_path) as conn:
+        urls = conn.execute(
+            "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
+        ).fetchall()
+
+    assert len(results) == 1
+    assert results[0]["episode_title"] == "Episode 1"
+    assert urls == [("https://cdn.example.com/1.mp3",)]
+
+
+def test_get_recently_played_falls_back_to_episode_url_for_missing_links(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(_make_feed(), [_make_episode(overcast_id=1)])
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed-1.xml",
+            "title": "Tech Podcast",
+            "description": "About technology",
+            "itunes:image:href": "https://example.com/feed-1.png",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3",
+                "feedXmlUrl": "https://example.com/feed-1.xml",
+                "title": "Episode 1",
+                "description": "Missing feed and episode links",
+                "itunes:image:href": "https://example.com/episodes/1.png",
+                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
+            },
+        ],
+    )
+
+    results = store.get_recently_played()
+
+    assert results[0]["link_"] == "https://example.com/1"
+
+
+def test_clean_enclosure_urls_skips_deduplication_without_query_params(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed-1.xml",
+            "title": "Tech Podcast",
+            "description": "About technology",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3",
+                "feedXmlUrl": "https://example.com/feed-1.xml",
+                "title": "Episode 1",
+                "description": "Clean enclosure URL",
+            },
+        ],
+    )
+
+    def fail_deduplicate() -> None:
+        msg = "Deduplication should be skipped when no query parameters exist"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        store,
+        "_deduplicate_extended_enclosure_urls",
+        fail_deduplicate,
+    )
+
+    store._clean_enclosure_urls(deduplicate=True)  # noqa: SLF001
+
+
+def test_save_feed_and_episodes_preserves_existing_html_url_when_missing(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(_make_feed(), [])
+    store.save_feed_and_episodes(
+        Feed(
+            overcastId=1,
+            title="Test Feed",
+            subscribed=True,
+            notifications=False,
+            xmlUrl="https://example.com/feed-1.xml",
+            htmlUrl=None,
+        ),
+        [],
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        html_url = conn.execute(
+            "SELECT htmlUrl FROM feeds WHERE overcastId = 1",
+        ).fetchone()
+
+    assert html_url == ("https://example.com/1",)

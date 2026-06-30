@@ -167,6 +167,30 @@ def test_unsubscribed_feed_parsed():
     assert feed.subscribed is False
 
 
+def test_feed_without_html_url_keeps_none():
+    root = ElementTree.fromstring(
+        """\
+        <opml version="2.0">
+          <body>
+            <outline text="feeds">
+              <outline
+                type="rss"
+                text="No HTML Feed"
+                title="No HTML Feed"
+                overcastId="303"
+                xmlUrl="https://example.com/no-html.xml"
+              />
+            </outline>
+          </body>
+        </opml>
+        """,
+    )
+
+    feeds = list(extract_feed_and_episodes_from_opml(root))
+    feed, _ = feeds[0]
+    assert feed.htmlUrl is None
+
+
 def test_playlist_to_dict():
     playlist = Playlist(
         title="Test",
