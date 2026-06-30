@@ -45,8 +45,7 @@ def test_stats_command_shows_listening_stats(tmp_path):
     )
 
     assert result.exit_code == 0
-    assert "Episodes played" in result.output
-    assert "3" in result.output
+    assert "Episodes played:      3" in result.output
     assert "Tech Podcast" in result.output
 
 
@@ -125,6 +124,53 @@ def test_search_command_with_extended_data(tmp_path):
 
     assert result.exit_code == 0
     assert "Episode 1" in result.output
+
+
+def test_search_command_quotes_punctuation_heavy_query(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    _populate_db(db_path)
+
+    store = Datastore(db_path)
+    store.save_extended_feed_and_episodes(
+        {
+            "xmlUrl": "https://example.com/feed.xml",
+            "title": "Tech Podcast",
+            "description": "Technology news and reviews",
+        },
+        [
+            {
+                "enclosureUrl": "https://cdn.example.com/1.mp3",
+                "feedXmlUrl": "https://example.com/feed.xml",
+                "title": "foo-bar",
+                "description": "Punctuation-heavy title",
+            },
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        ["search", "foo-bar", db_path],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert "foo-bar" in result.output
+
+
+def test_search_command_rejects_non_positive_limit(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    _populate_db(db_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        ["search", "-l", "0", "foo", db_path],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 2
+    assert "0 is not in the range x>=1" in result.output
 
 
 def test_format_duration():

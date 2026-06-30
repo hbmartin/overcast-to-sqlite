@@ -444,7 +444,7 @@ def stats(db_path: str) -> None:
     "-l",
     "--limit",
     default=20,
-    type=int,
+    type=click.IntRange(min=1),
     help="Maximum number of results per category",
 )
 def search(query: str, db_path: str, limit: int) -> None:

@@ -8,7 +8,7 @@ wheel-exclude = ["**/.mypy_cache", "**/.DS_Store"]
 
 [project]
 name = "overcast-to-sqlite"
-version = "1.0.0"
+version = "1.1.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
 license = "Apache-2.0"

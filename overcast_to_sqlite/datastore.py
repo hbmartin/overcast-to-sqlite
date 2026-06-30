@@ -50,6 +50,22 @@ from .constants import (
 )
 
 _DEFAULT_EPISODE_LIMIT = 100
+_PLAYED_WHERE_CLAUSE = f"played=1 OR {PROGRESS}>300"
+
+
+def _base_enclosure_url_sql(column_name: str) -> str:
+    """Return SQL that strips query parameters from an enclosure URL."""
+    return (
+        f"CASE WHEN instr({column_name}, '?') > 0 "
+        f"THEN substr({column_name}, 1, instr({column_name}, '?') - 1) "
+        f"ELSE {column_name} END"
+    )
+
+
+def _fts_phrase_query(query: str) -> str:
+    """Quote user input so FTS5 treats it as a literal phrase query."""
+    escaped_query = query.replace('"', '""')
+    return f'"{escaped_query}"'
 
 
 def _overcast_limit_days() -> int | None:
@@ -238,7 +254,20 @@ class Datastore:
                 >= cutoff_date
             ]
 
-        self._table(FEEDS).upsert(feed.to_dict(), pk=OVERCAST_ID)
+        feed_row = feed.to_dict()
+        if (
+            feed.htmlUrl is None
+            and (
+                existing_feed := self.db.execute(
+                    f"SELECT htmlUrl FROM {FEEDS} WHERE {OVERCAST_ID} = ?",
+                    [feed.overcastId],
+                ).fetchone()
+            )
+            is not None
+        ):
+            feed_row["htmlUrl"] = existing_feed[0]
+
+        self._table(FEEDS).upsert(feed_row, pk=OVERCAST_ID)
         self._table(EPISODES).upsert_all(
             [e.to_dict() for e in episodes],
             pk=OVERCAST_ID,
@@ -419,44 +448,59 @@ class Datastore:
 
     def _clean_enclosure_urls(self, *, deduplicate: bool = False) -> None:
         """Clean and normalize enclosure URLs by removing query parameters."""
+        self._normalize_enclosure_urls(EPISODES)
+
+        if not self._has_enclosure_url_query_parameters(EPISODES_EXTENDED):
+            return
+
+        if deduplicate:
+            self._deduplicate_extended_enclosure_urls()
+
+        self._normalize_enclosure_urls(EPISODES_EXTENDED)
+
+    def _has_enclosure_url_query_parameters(self, table_name: str) -> bool:
+        """Return whether a table has enclosure URLs with query parameters."""
+        return (
+            self.db.execute(
+                f"SELECT 1 FROM {table_name} "
+                f"WHERE instr({ENCLOSURE_URL}, '?') > 0 LIMIT 1",
+            ).fetchone()
+            is not None
+        )
+
+    def _normalize_enclosure_urls(self, table_name: str) -> None:
+        """Strip query parameters from enclosure URLs in the given table."""
+        if not self._has_enclosure_url_query_parameters(table_name):
+            return
+
+        update_clause = (
+            "UPDATE OR IGNORE" if table_name == EPISODES_EXTENDED else "UPDATE"
+        )
         self.db.execute(
-            f"UPDATE {EPISODES} "
+            f"{update_clause} {table_name} "
             f"SET {ENCLOSURE_URL} = "
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
-            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+            f"WHERE instr({ENCLOSURE_URL}, '?') > 0",
         )
         self._conn().commit()
 
-        if deduplicate:
-            self.db.execute(
-                f"""
-                DELETE FROM {EPISODES_EXTENDED} WHERE rowid IN (
-                    SELECT t1.rowid
-                    FROM {EPISODES_EXTENDED} t1
-                    JOIN (
-                        SELECT
-                            substr({ENCLOSURE_URL}, 1,
-                                   instr({ENCLOSURE_URL}, '?') - 1)
-                            AS base_url,
-                            MIN(rowid) AS min_rowid
-                        FROM {EPISODES_EXTENDED}
-                        WHERE {ENCLOSURE_URL} LIKE '%?%'
-                        GROUP BY base_url
-                    ) t2 ON
-                    substr(t1.{ENCLOSURE_URL}, 1,
-                           instr(t1.{ENCLOSURE_URL}, '?') - 1)
-                    = t2.base_url
-                    WHERE  t1.rowid > t2.min_rowid
-                )
-                """,
-            )
-            self._conn().commit()
-
+    def _deduplicate_extended_enclosure_urls(self) -> None:
+        """Delete duplicate extended episodes after enclosure URL normalization."""
+        enclosure_base_url = _base_enclosure_url_sql(ENCLOSURE_URL)
         self.db.execute(
-            f"UPDATE OR IGNORE {EPISODES_EXTENDED} "
-            f"SET {ENCLOSURE_URL} = "
-            f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
-            f"WHERE {ENCLOSURE_URL} LIKE '%?%'",
+            f"""
+            WITH normalized AS (
+                SELECT rowid, {enclosure_base_url} AS base_url
+                FROM {EPISODES_EXTENDED}
+            ),
+            canonical AS (
+                SELECT MIN(rowid) AS keep_rowid
+                FROM normalized
+                GROUP BY base_url
+            )
+            DELETE FROM {EPISODES_EXTENDED}
+            WHERE rowid NOT IN (SELECT keep_rowid FROM canonical)
+            """,
         )
         self._conn().commit()
 
@@ -464,17 +508,21 @@ class Datastore:
         """Get the base field list for episode queries."""
         return [
             f"{EPISODES}.{TITLE}",
-            f"{EPISODES}.{URL}",
+            f"{EPISODES}.{URL} as episode_url",
             f"{FEEDS_EXTENDED}.{TITLE} as feed_title",
-            f"{FEEDS_EXTENDED}.'itunes:image:href' as image_",
-            f"{FEEDS_EXTENDED}.link as link_",
+            (
+                f"coalesce({EPISODES_EXTENDED}.'itunes:image:href', "
+                f"{FEEDS_EXTENDED}.'itunes:image:href') as image_"
+            ),
+            (
+                f"coalesce({EPISODES_EXTENDED}.link, {FEEDS_EXTENDED}.link, "
+                f"{EPISODES}.{URL}) as link_"
+            ),
             (
                 f"coalesce({EPISODES_EXTENDED}.description, "
                 f"'No description') as description"
             ),
             f"{EPISODES_EXTENDED}.pubDate as pubDate",
-            f"{EPISODES_EXTENDED}.'itunes:image:href' as 'images.'",
-            f"{EPISODES_EXTENDED}.link as 'links.'",
         ]
 
     def _build_episode_query(
@@ -523,7 +571,7 @@ class Datastore:
 
         query = self._build_episode_query(
             fields=fields,
-            where_clause="played=1 OR progress>300",
+            where_clause=_PLAYED_WHERE_CLAUSE,
             order_by=f"{USER_UPDATED_DATE} DESC",
         )
 
@@ -600,7 +648,7 @@ class Datastore:
     def get_listening_stats(self) -> dict[str, int]:
         """Get aggregate listening statistics."""
         played = self.db.execute(
-            f"SELECT COUNT(*) FROM {EPISODES} WHERE played=1",
+            f"SELECT COUNT(*) FROM {EPISODES} WHERE {_PLAYED_WHERE_CLAUSE}",
         ).fetchone()[0]
 
         total_progress = self.db.execute(
@@ -633,11 +681,14 @@ class Datastore:
         limit: int = 10,
     ) -> list[tuple[str, int]]:
         """Get top podcasts ranked by number of played episodes."""
+        if limit <= 0:
+            return []
+
         return self.db.execute(
             f"SELECT {FEEDS}.{TITLE}, COUNT(*) as count "
             f"FROM {EPISODES} "
             f"JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
-            f"WHERE played=1 "
+            f"WHERE {_PLAYED_WHERE_CLAUSE} "
             f"GROUP BY {EPISODES}.{FEED_ID} "
             f"ORDER BY count DESC LIMIT ?",
             [limit],
@@ -648,6 +699,9 @@ class Datastore:
         limit: int = 10,
     ) -> list[tuple[str, int]]:
         """Get top podcasts ranked by total listening time."""
+        if limit <= 0:
+            return []
+
         return self.db.execute(
             f"SELECT {FEEDS}.{TITLE}, "
             f"COALESCE(SUM({PROGRESS}), 0) as total_time "
@@ -665,8 +719,12 @@ class Datastore:
         self,
         query: str,
         limit: int = 20,
-    ) -> list[tuple[str, str]]:
+    ) -> list[tuple[str, str | None]]:
         """Search episodes using full-text search."""
+        if limit <= 0:
+            return []
+
+        fts_query = _fts_phrase_query(query)
         try:
             return self.db.execute(
                 f"SELECT ee.{TITLE}, fe.{TITLE} "
@@ -676,7 +734,7 @@ class Datastore:
                 f"ON ee.{FEED_XML_URL} = fe.{XML_URL} "
                 f"WHERE {EPISODES_EXTENDED}_fts MATCH ? "
                 f"ORDER BY fts.rank LIMIT ?",
-                [query, limit],
+                [fts_query, limit],
             ).fetchall()
         except sqlite3.OperationalError:
             return []
@@ -687,6 +745,10 @@ class Datastore:
         limit: int = 20,
     ) -> list[tuple[str]]:
         """Search feeds using full-text search."""
+        if limit <= 0:
+            return []
+
+        fts_query = _fts_phrase_query(query)
         try:
             return self.db.execute(
                 f"SELECT fe.{TITLE} "
@@ -694,7 +756,7 @@ class Datastore:
                 f"JOIN {FEEDS_EXTENDED} fe ON fe.rowid = fts.rowid "
                 f"WHERE {FEEDS_EXTENDED}_fts MATCH ? "
                 f"ORDER BY fts.rank LIMIT ?",
-                [query, limit],
+                [fts_query, limit],
             ).fetchall()
         except sqlite3.OperationalError:
             return []
@@ -705,6 +767,10 @@ class Datastore:
         limit: int = 20,
     ) -> list[tuple[str]]:
         """Search chapters using full-text search."""
+        if limit <= 0:
+            return []
+
+        fts_query = _fts_phrase_query(query)
         try:
             return self.db.execute(
                 f"SELECT ch.{CONTENT} "
@@ -712,7 +778,7 @@ class Datastore:
                 f"JOIN {CHAPTERS} ch ON ch.rowid = fts.rowid "
                 f"WHERE {CHAPTERS}_fts MATCH ? "
                 f"ORDER BY fts.rank LIMIT ?",
-                [query, limit],
+                [fts_query, limit],
             ).fetchall()
         except sqlite3.OperationalError:
             return []

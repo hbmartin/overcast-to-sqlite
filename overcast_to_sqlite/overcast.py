@@ -117,7 +117,7 @@ def extract_feed_and_episodes_from_opml(
             subscribed=attribs.get("subscribed", "0") == "1",
             notifications=attribs.get("notifications", "0") == "1",
             xmlUrl=attribs[XML_URL],
-            htmlUrl=attribs.get("htmlUrl", ""),
+            htmlUrl=attribs.get("htmlUrl"),
             overcastAddedDate=_iso_date_or_none(
                 dict(attribs),
                 "overcastAddedDate",

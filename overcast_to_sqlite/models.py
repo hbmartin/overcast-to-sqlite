@@ -22,7 +22,7 @@ class Feed:
     subscribed: bool
     notifications: bool
     xmlUrl: str
-    htmlUrl: str
+    htmlUrl: str | None
     overcastAddedDate: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
