@@ -255,17 +255,13 @@ class Datastore:
             ]
 
         feed_row = feed.to_dict()
-        if (
-            feed.htmlUrl is None
-            and (
-                existing_feed := self.db.execute(
-                    f"SELECT htmlUrl FROM {FEEDS} WHERE {OVERCAST_ID} = ?",
-                    [feed.overcastId],
-                ).fetchone()
-            )
-            is not None
-        ):
-            feed_row["htmlUrl"] = existing_feed[0]
+        if feed.htmlUrl is None:
+            existing_feed = self.db.execute(
+                f"SELECT htmlUrl FROM {FEEDS} WHERE {OVERCAST_ID} = ?",
+                [feed.overcastId],
+            ).fetchone()
+            if existing_feed is not None:
+                feed_row["htmlUrl"] = existing_feed[0]
 
         self._table(FEEDS).upsert(feed_row, pk=OVERCAST_ID)
         self._table(EPISODES).upsert_all(
@@ -446,16 +442,14 @@ class Datastore:
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )
 
-    def _clean_enclosure_urls(self, *, deduplicate: bool = False) -> None:
+    def _clean_enclosure_urls(self) -> None:
         """Clean and normalize enclosure URLs by removing query parameters."""
         self._normalize_enclosure_urls(EPISODES)
 
         if not self._has_enclosure_url_query_parameters(EPISODES_EXTENDED):
             return
 
-        if deduplicate:
-            self._deduplicate_extended_enclosure_urls()
-
+        self._deduplicate_extended_enclosure_urls()
         self._normalize_enclosure_urls(EPISODES_EXTENDED)
 
     def _has_enclosure_url_query_parameters(self, table_name: str) -> bool:
@@ -560,7 +554,7 @@ class Datastore:
 
     def get_recently_played(self) -> list[dict[str, object]]:
         """Retrieve a list of recently played episodes with metadata."""
-        self._clean_enclosure_urls(deduplicate=True)
+        self._clean_enclosure_urls()
 
         base_fields = self._get_base_fields()
         fields = [

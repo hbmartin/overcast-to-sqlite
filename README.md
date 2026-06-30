@@ -165,11 +165,11 @@ This displays total episodes played, total listening time, starred episodes, sub
 
 The `search` command performs full-text search across episodes, feeds, and chapters. Run `save` and `extend` first, and run `chapters` as well if you want chapter results.
 
-    $ overcast-to-sqlite search "machine learning"
+    overcast-to-sqlite search "machine learning"
 
 Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category with a positive integer (default: 20).
 
-    $ overcast-to-sqlite search "interview" -l 5
+    overcast-to-sqlite search "interview" -l 5
 
 ## Database schema
 
