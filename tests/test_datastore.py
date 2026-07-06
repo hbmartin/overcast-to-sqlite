@@ -461,6 +461,68 @@ def test_clean_enclosure_urls_skips_deduplication_without_query_params(
     store._clean_enclosure_urls(deduplicate=True)  # noqa: SLF001
 
 
+def test_ensure_episode_download_column(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+
+    assert store.ensure_episode_download_column() is True
+    assert store.ensure_episode_download_column() is False
+
+    with sqlite3.connect(db_path) as conn:
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(episodes)")]
+    assert "enclosureDownloadPath" in columns
+
+
+def test_audio_to_download_filters_recorded_and_null_enclosures(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(
+        _make_feed(),
+        [_make_episode(overcast_id=i) for i in range(1, 4)],
+    )
+    store.ensure_episode_download_column()
+    store.update_audio_download_path(overcast_id=2, audio_path="/audio/2.mp3")
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE episodes SET enclosureUrl = NULL WHERE overcastId = 3")
+
+    rows = list(store.audio_to_download(starred_only=False))
+
+    assert rows == [(1, "Episode 1", "https://cdn.example.com/1.mp3", "Test Feed")]
+
+
+def test_audio_to_download_starred_only(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(
+        _make_feed(),
+        [
+            _make_episode(overcast_id=1),
+            _make_episode(overcast_id=2, starred=True),
+        ],
+    )
+    store.ensure_episode_download_column()
+
+    rows = list(store.audio_to_download(starred_only=True))
+
+    assert rows == [(2, "Episode 2", "https://cdn.example.com/2.mp3", "Test Feed")]
+
+
+def test_update_audio_download_path(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store = Datastore(db_path)
+    store.save_feed_and_episodes(_make_feed(), [_make_episode(overcast_id=1)])
+    store.ensure_episode_download_column()
+
+    store.update_audio_download_path(overcast_id=1, audio_path="/audio/1.mp3")
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT enclosureDownloadPath FROM episodes WHERE overcastId = 1",
+        ).fetchone()
+    assert row == ("/audio/1.mp3",)
+    assert list(store.audio_to_download(starred_only=False)) == []
+
+
 def test_save_feed_and_episodes_preserves_existing_html_url_when_missing(tmp_path):
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)

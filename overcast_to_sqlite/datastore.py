@@ -19,6 +19,7 @@ from .constants import (
     CHAPTERS,
     CONTENT,
     DESCRIPTION,
+    ENCLOSURE_DL_PATH,
     ENCLOSURE_URL,
     EPISODES,
     EPISODES_EXTENDED,
@@ -390,6 +391,51 @@ class Datastore:
             enclosure,
             {TRANSCRIPT_DL_PATH: transcript_path},
         )
+
+    # AUDIO
+
+    def ensure_episode_download_column(self) -> bool:
+        """Ensure the enclosure download path column exists in episodes.
+
+        Returns bool indicating if the column was added.
+        """
+        try:
+            self.db.execute(f"SELECT {ENCLOSURE_DL_PATH} FROM {EPISODES} LIMIT 1")
+        except sqlite3.OperationalError:
+            self._table(EPISODES).add_column(ENCLOSURE_DL_PATH, str)
+            return True
+        return False
+
+    def audio_to_download(
+        self,
+        *,
+        starred_only: bool,
+    ) -> Iterable[tuple[int, str, str, str]]:
+        """Find episodes with audio enclosures to download.
+
+        Yields (overcast_id, title, enclosure_url, feed_title)
+        """
+        select = (
+            f"SELECT {EPISODES}.{OVERCAST_ID}, {EPISODES}.{TITLE}, "
+            f"{EPISODES}.{ENCLOSURE_URL}, {FEEDS}.{TITLE} FROM {EPISODES} "
+            f"LEFT JOIN {FEEDS} ON {EPISODES}.{FEED_ID} = {FEEDS}.{OVERCAST_ID} "
+        )
+        where = (
+            f"WHERE {ENCLOSURE_DL_PATH} IS NULL "
+            f"AND {EPISODES}.{ENCLOSURE_URL} IS NOT NULL"
+        )
+        order = f"ORDER BY {FEEDS}.{TITLE} ASC"
+        query = (
+            f"{select}{where} {order}"
+            if not starred_only
+            else f"{select}{where} AND {USER_REC_DATE} IS NOT NULL {order}"
+        )
+
+        yield from self.db.execute(query)
+
+    def update_audio_download_path(self, overcast_id: int, audio_path: str) -> None:
+        """Update episode with audio download path."""
+        self._table(EPISODES).update(overcast_id, {ENCLOSURE_DL_PATH: audio_path})
 
     # CHAPTERS
     def insert_chapters(

@@ -19,6 +19,7 @@ If you simply want a page showing your recently listened episodes, try out the s
 - [Extending and saving full feeds](#extending-and-saving-full-feeds)
 - [Downloading transcripts](#downloading-transcripts)
 - [Downloading chapters](#downloading-chapters)
+- [Downloading audio files](#downloading-audio-files)
 - [Generating HTML pages](#generating-html-pages)
 - [Running all commands](#running-all-commands)
 - [Listening statistics](#listening-statistics)
@@ -46,6 +47,7 @@ Install it permanently if you want `overcast-to-sqlite` available for later comm
 | `extend` | Download XML feeds and extract all tags and attributes |
 | `transcripts` | Download available transcripts for episodes |
 | `chapters` | Download and store available chapters for episodes |
+| `audio` | Download episode audio files |
 | `html` | Generate HTML pages for played, starred, and deleted episodes |
 | `all` | Run save, extend, transcripts, and chapters sequentially |
 | `stats` | Show listening statistics |
@@ -131,6 +133,24 @@ The `chapters` command downloads and stores available chapters for episodes. The
 
 By default, chapters are archived to `archive/` adjacent to the database file. A different path can be set with the `-p`/`--path` flag.
 
+## Downloading audio files
+
+The `audio` command downloads the audio files for episodes in your Overcast history (played, queued, or starred). Only the `save` command MUST be run prior to this (`extend` is not required).
+
+    $ overcast-to-sqlite audio
+
+By default this will save audio files to `archive/audio/<feed title>/<episode title>.<ext>`.
+
+The download's location is then stored in the `enclosureDownloadPath` column of the `episodes` table, and re-running the command skips episodes that were already downloaded.
+
+A different path can be set with the `-p`/`--path` flag.
+
+There is also a `-s` flag to only download audio for starred episodes.
+
+It also supports the `-v` flag to print additional information.
+
+Note: audio files are large (often 50–200 MB per episode), so this command is intentionally not part of `all` and must be run explicitly.
+
 ## Generating HTML pages
 
 The `html` command generates static HTML pages for recently played, starred, and deleted episodes.
@@ -188,7 +208,7 @@ Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l
 
 **feeds**: `overcastId`, `title`, `subscribed`, `overcastAddedDate`, `notifications`, `xmlUrl`, `htmlUrl`, `dateRemoveDetected`
 
-**episodes**: `overcastId`, `feedId`, `title`, `url`, `overcastUrl`, `played`, `progress` (seconds), `enclosureUrl`, `userUpdatedDate`, `userRecommendedDate` (starred date), `pubDate`, `userDeleted`
+**episodes**: `overcastId`, `feedId`, `title`, `url`, `overcastUrl`, `played`, `progress` (seconds), `enclosureUrl`, `userUpdatedDate`, `userRecommendedDate` (starred date), `pubDate`, `userDeleted`, `enclosureDownloadPath` (from `audio`)
 
 **feeds_extended**: `xmlUrl` (FK to feeds), `title`, `description`, `lastUpdated`, `link`, `guid`, plus dynamic columns from RSS XML
 
