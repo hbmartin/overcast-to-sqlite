@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 from concurrent.futures import ThreadPoolExecutor
+from mimetypes import guess_type
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -276,6 +277,91 @@ def transcripts(  # noqa: C901
             db.update_transcript_download_paths(
                 enclosure,
                 str(file_path),
+            )
+
+
+@cli.command()
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default="overcast.db",
+)
+@click.option(
+    "-p",
+    "--path",
+    "archive_path",
+    type=click.Path(file_okay=False, dir_okay=True, allow_dash=False),
+)
+@click.option("-s", "--starred-only", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True)
+def audio(  # noqa: C901
+    db_path: str,
+    archive_path: str | None,
+    starred_only: bool,
+    verbose: bool,
+) -> None:
+    """Download episode audio files for all or starred episodes."""
+    db = Datastore(db_path)
+
+    audio_path = Path(archive_path) if archive_path else _archive_path(db_path, "audio")
+
+    audio_path.mkdir(parents=True, exist_ok=True)
+
+    db.ensure_episode_download_column()
+
+    audio_to_download = list(db.audio_to_download(starred_only=starred_only))
+
+    if verbose:
+        print(f"🔉Downloading {len(audio_to_download)} audio files...")
+
+    def _fetch_and_write_audio(
+        episode: tuple[int, str, str, str],
+    ) -> tuple[int, str] | None:
+
+        overcast_id, title, url, feed_title = episode
+        if verbose:
+            print(f"⬇️Downloading {title} @ {url}")
+        try:
+            response = requests.get(url, headers=_headers_ua(), stream=True, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"⛔ Error downloading {url}: {e}")
+            return None
+
+        if not response.ok:
+            print(f"⛔ Error code {response.status_code} downloading {url}")
+            if verbose:
+                print(response.headers)
+            return None
+        feed_path = audio_path / _sanitize_for_path(feed_title)
+        feed_path.mkdir(exist_ok=True)
+        fallback_type = guess_type(url)[0] or "audio/mpeg"
+        file_ext = _file_extension_for_type(response.headers, fallback_type)
+        file_path = feed_path / (_sanitize_for_path(title) + file_ext)
+        part_path = file_path.with_name(f"{file_path.name}.part")
+        if verbose:
+            print(f"📝Saving {file_path}")
+        try:
+            with part_path.open(mode="wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    file.write(chunk)
+        except (requests.exceptions.RequestException, OSError) as e:
+            print(f"⛔ Error saving {url}: {e}")
+            part_path.unlink(missing_ok=True)
+            return None
+        part_path.replace(file_path)
+        return overcast_id, str(file_path.absolute())
+
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+        results = list(executor.map(_fetch_and_write_audio, audio_to_download))
+
+    if verbose:
+        print(f"Saving {len(results)} audio files to database")
+    for row in results:
+        if row is not None:
+            overcast_id, file_path = row
+            db.update_audio_download_path(
+                overcast_id=overcast_id,
+                audio_path=file_path,
             )
 
 
