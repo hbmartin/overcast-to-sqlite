@@ -255,6 +255,14 @@ uv sync --dev
 uv run overcast-to-sqlite all -v
 ```
 
+### Building distributions
+
+Build the source distribution and wheel with the `uv_build` backend:
+
+```bash
+uv build
+```
+
 ### Code Formatting and Linting
 
 ```bash
