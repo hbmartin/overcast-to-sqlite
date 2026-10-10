@@ -12,7 +12,7 @@ version = "1.1.0"
 description = "Save listening history and feed/episode info from Overcast to a SQLite database."
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 authors = [
     { name = "Harold Martin", email = "Harold.Martin@gmail.com" },
 ]
@@ -24,6 +24,7 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
@@ -48,7 +49,6 @@ dev = [
     "black>=25.1.0",
     "lizard>=1.21.2",
     "pyrefly>=0.56.0",
-    "pyroma>=5.0.1",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "requests-mock>=1.12.1",
@@ -61,6 +61,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.black]
+target-version = ["py313"]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv", ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist", "node_modules", "setup.py", "site-packages", "venv"]
@@ -68,7 +71,7 @@ exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_ch
 # Same as Black.
 line-length = 88
 indent-width = 4
-target-version = "py314"
+target-version = "py313"
 
 lint.select = ["ALL"]
 lint.ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213", "ICN001", "S608", "S113", "S311", "S314", "T201"]

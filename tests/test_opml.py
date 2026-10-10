@@ -167,7 +167,7 @@ def test_unsubscribed_feed_parsed():
     assert feed.subscribed is False
 
 
-def test_feed_without_html_url_keeps_none():
+def test_feed_without_html_url_keeps_none() -> None:
     root = ElementTree.fromstring(
         """\
         <opml version="2.0">

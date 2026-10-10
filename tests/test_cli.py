@@ -126,18 +126,18 @@ def test_search_command_with_extended_data(tmp_path):
     assert "Episode 1" in result.output
 
 
-def test_search_command_quotes_punctuation_heavy_query(tmp_path):
+def test_search_command_quotes_punctuation_heavy_query(tmp_path) -> None:
     db_path = str(tmp_path / "test.db")
     _populate_db(db_path)
 
     store = Datastore(db_path)
     store.save_extended_feed_and_episodes(
-        {
+        feed={
             "xmlUrl": "https://example.com/feed.xml",
             "title": "Tech Podcast",
             "description": "Technology news and reviews",
         },
-        [
+        episodes=[
             {
                 "enclosureUrl": "https://cdn.example.com/1.mp3",
                 "feedXmlUrl": "https://example.com/feed.xml",
@@ -158,7 +158,7 @@ def test_search_command_quotes_punctuation_heavy_query(tmp_path):
     assert "foo-bar" in result.output
 
 
-def test_search_command_rejects_non_positive_limit(tmp_path):
+def test_search_command_rejects_non_positive_limit(tmp_path) -> None:
     db_path = str(tmp_path / "test.db")
     _populate_db(db_path)
 

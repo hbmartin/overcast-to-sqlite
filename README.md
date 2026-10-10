@@ -30,6 +30,8 @@ If you simply want a page showing your recently listened episodes, try out the s
 
 ## How to install
 
+Requires Python 3.13 or newer.
+
 Run it once without installing:
 
     $ uvx overcast-to-sqlite
@@ -185,11 +187,11 @@ This displays total episodes played, total listening time, starred episodes, sub
 
 The `search` command performs full-text search across episodes, feeds, and chapters. Run `save` and `extend` first, and run `chapters` as well if you want chapter results.
 
-    $ overcast-to-sqlite search "machine learning"
+    overcast-to-sqlite search "machine learning"
 
 Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category with a positive integer (default: 20).
 
-    $ overcast-to-sqlite search "interview" -l 5
+    overcast-to-sqlite search "interview" -l 5
 
 ## Database schema
 
@@ -251,6 +253,14 @@ git clone git@github.com:hbmartin/overcast-to-sqlite.git
 cd overcast-to-sqlite
 uv sync --dev
 uv run overcast-to-sqlite all -v
+```
+
+### Building distributions
+
+Build the source distribution and wheel with the `uv_build` backend:
+
+```bash
+uv build
 ```
 
 ### Code Formatting and Linting
