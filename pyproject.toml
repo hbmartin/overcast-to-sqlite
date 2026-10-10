@@ -64,6 +64,14 @@ testpaths = ["tests"]
 [tool.black]
 target-version = ["py313"]
 
+[tool.garuff]
+ignore = [
+    "GAC001", # Postponed annotations are needed for Python 3.13 support.
+    "GAC005", # Homogeneous tuples describe immutable values and SQLite rows.
+    "GAC008", # Positional parameters are needed by inherited method interfaces.
+    "GAC010", # Docstrings are not required on every helper and test function.
+]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv", ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist", "node_modules", "setup.py", "site-packages", "venv"]

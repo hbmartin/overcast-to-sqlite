@@ -52,3 +52,65 @@ jobs:
           root_dir: .
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
+
+  garuff:
+    name: garuff (experimental, advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      # No packaged release yet; pin the source to keep the rules reproducible.
+      GARUFF_SOURCE: git+https://github.com/gahjelle/garuff@7d126c00f13b4d94f39f1107934089241ab7a6a1
+      # Match garuff's uv_build>=0.11.26,<0.12.0 requirement.
+      GARUFF_UV_VERSION: "0.11.26"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.GARUFF_UV_VERSION }}
+
+      - name: Set up Python 3.14
+        run: uv python install 3.14
+
+      - name: Run garuff check
+        id: garuff
+        shell: bash
+        run: |
+          set +e
+          uvx --python 3.14 --from "$GARUFF_SOURCE" garuff check overcast_to_sqlite tests README.md AGENTS.md CLAUDE.md 2>&1 | tee garuff-report.txt
+          garuff_status=${PIPESTATUS[0]}
+          echo "exit_code=$garuff_status" >> "$GITHUB_OUTPUT"
+          exit "$garuff_status"
+
+      - name: Summarize garuff results
+        if: ${{ always() }}
+        env:
+          GARUFF_EXIT_CODE: ${{ steps.garuff.outputs.exit_code }}
+        run: |
+          {
+            echo '### garuff (experimental, advisory)'
+            echo
+            echo "Pinned source: \`$GARUFF_SOURCE\`"
+            echo "uv version: \`$GARUFF_UV_VERSION\`"
+            echo "Exit code: \`${GARUFF_EXIT_CODE:-not run}\`"
+            echo
+            echo 'Findings and checker failures are advisory during evaluation.'
+            if [ -f garuff-report.txt ]; then
+              echo
+              echo '```text'
+              cat garuff-report.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload garuff report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: garuff-report
+          path: garuff-report.txt
+          if-no-files-found: ignore
+          retention-days: 14

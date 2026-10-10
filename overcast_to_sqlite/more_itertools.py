@@ -38,7 +38,7 @@ def chunked(iterable, n, strict=False):
     To use a fill-in value instead, see the :func:`grouper` recipe.
 
     If the length of *iterable* is not divisible by *n* and *strict* is
-    ``True``, then ``ValueError`` will be raised before the last
+    `True`, then `ValueError` will be raised before the last
     list is yielded.
 
     """

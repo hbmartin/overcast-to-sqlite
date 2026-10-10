@@ -4,7 +4,7 @@ import dataclasses
 from typing import Any
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(kw_only=True)
 class Playlist:
     title: str
     smart: int
@@ -15,7 +15,7 @@ class Playlist:
         return dataclasses.asdict(self)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(kw_only=True)
 class Feed:
     overcastId: int
     title: str
@@ -29,7 +29,7 @@ class Feed:
         return dataclasses.asdict(self)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(kw_only=True)
 class Episode:
     overcastId: int
     feedId: int

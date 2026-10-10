@@ -277,6 +277,37 @@ uv run pytest tests/
 
 This project is linted and formatted with [ruff](https://docs.astral.sh/ruff/). Type checking is done with [pyrefly](https://github.com/facebook/pyrefly) and [ty](https://github.com/astral-sh/ty).
 
+### Experimental garuff checks
+
+The lint workflow also runs [garuff](https://github.com/gahjelle/garuff) in a separate, advisory job. It checks the application, tests, and project documentation using the configuration in `pyproject.toml`. Findings and checker failures do not block CI while the tool is being evaluated. Each run records the source commit, uv version, exit code, and full output in the job summary and uploads a `garuff-report` artifact retained for 14 days.
+
+garuff currently requires Python 3.14 and has no packaged release. CI installs it in an isolated tool environment from a pinned Git commit, so the project's Python 3.13 support and development dependencies are unaffected. The garuff job also pins uv to 0.11.26, which satisfies garuff's `uv_build>=0.11.26,<0.12.0` requirement and avoids the build-system version warning seen with uv 0.12.24. Run the same toolchain locally with:
+
+```bash
+uvx --from 'uv==0.11.26' uvx --python 3.14 --from 'git+https://github.com/gahjelle/garuff@7d126c00f13b4d94f39f1107934089241ab7a6a1' garuff check overcast_to_sqlite tests README.md AGENTS.md CLAUDE.md
+```
+
+The configuration disables `GAC001` to preserve postponed annotations needed on Python 3.13, `GAC005` to allow homogeneous tuples, `GAC008` to preserve positional parameters used by inherited method interfaces, and `GAC010` to allow functions without docstrings. All other rules remain enabled. CI runs without `--fix`.
+
+The `Playlist`, `Feed`, and `Episode` model constructors require keyword arguments for every field. For example, use `Playlist(title="Queue", smart=0, sorting="newest", includePodcastIds="1,2")`. Positional model construction now raises `TypeError`.
+
+The initial evaluation on 2026-10-10, against application revision `37fbd52`, completed without checker crashes or parse errors and exited with status 1 for 216 findings: 91 in the application, 125 in tests, and none in the three Markdown files checked.
+
+A follow-up run with the three rules disabled and uv pinned to 0.11.26 rebuilt garuff with an empty cache. It completed without the build-system version warning, checker crashes, or parse errors and exited with status 1 for 68 remaining findings: 41 in the application, 27 in tests, and none in the three Markdown files checked.
+
+The latest run also disables `GAC008`, makes all three model dataclasses keyword-only, and uses single backticks in the affected docstring. An empty-cache build and check completed with 0 findings across 24 Python files and three Markdown files, exit status 0, and no build-system version warning, checker crashes, or parse errors.
+
+| Rule | Initial findings | Current findings | Convention |
+|------|------------------|------------------|------------|
+| `GAC001` | 8 | Disabled | Remove postponed annotations |
+| `GAC004` | 1 | 0 (fixed) | Use single backticks in docstrings |
+| `GAC005` | 2 | Disabled | Prefer lists to homogeneous tuples |
+| `GAC008` | 64 | Disabled | Allow at most one positional parameter |
+| `GAC009` | 3 | 0 (fixed) | Require keyword-only dataclasses |
+| `GAC010` | 138 | Disabled | Require docstrings on every function |
+
+The compatibility concerns were reproduced without changing application files: applying the `GAC001` advice to `feed.py` caused `NameError: name 'Path' is not defined` on Python 3.13, and applying `GAC008` to the HTML parser override caused a `TypeError` during parsing. Keep the source and uv pins and advisory status until upgrades have been evaluated.
+
 ## Authors
 
 * [Harold Martin](https://www.linkedin.com/in/harold-martin-98526971/) - harold.martin at gmail
