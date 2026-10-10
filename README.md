@@ -157,6 +157,8 @@ Note: audio files are large (often 50–200 MB per episode), so this command is 
 
 The `html` command generates static HTML pages for recently played, starred, and deleted episodes.
 
+For databases created by older versions, run `save` or `extend` once before generating HTML to normalize existing enclosure URLs. Both commands remove query parameters and deduplicate extended episodes, preserving the complete metadata of an existing clean URL row when available. If every URL in a duplicate group has query parameters, the earliest stored row is retained. This cleanup runs even when `extend` has no feeds to download; opening the database and retrieving episodes do not perform URL cleanup.
+
     $ overcast-to-sqlite html
 
 This produces three files: `overcast-played.html`, `overcast-starred.html`, and `overcast-deleted.html` in the same directory as the database file.
@@ -187,11 +189,11 @@ This displays total episodes played, total listening time, starred episodes, sub
 
 The `search` command performs full-text search across episodes, feeds, and chapters. Run `save` and `extend` first, and run `chapters` as well if you want chapter results.
 
-    overcast-to-sqlite search "machine learning"
+    $ overcast-to-sqlite search "machine learning"
 
 Results are grouped by category (episodes, feeds, chapters). Use `--limit` / `-l` to control the maximum results per category with a positive integer (default: 20).
 
-    overcast-to-sqlite search "interview" -l 5
+    $ overcast-to-sqlite search "interview" -l 5
 
 ## Database schema
 

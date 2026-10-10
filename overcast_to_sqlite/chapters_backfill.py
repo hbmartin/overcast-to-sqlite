@@ -43,7 +43,7 @@ def backfill_chapters_pci(db: Datastore, chapters_path: Path) -> None:
 
     def _get_and_extract(
         podcast: tuple[str, str, str, str],
-    ) -> None | list[tuple[str, str, str, int, str, str | None, str | None]]:
+    ) -> list[tuple[str, str, str, int, str, str | None, str | None]] | None:
         enc_url, guid, title, chap_url = podcast
         try:
             extracted = get_and_extract_pci_chapters(

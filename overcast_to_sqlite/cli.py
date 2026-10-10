@@ -95,6 +95,7 @@ def save(
 ) -> None:
     """Save Overcast info to SQLite database."""
     db = Datastore(db_path)
+    db.clean_enclosure_urls()
     ingested_feed_ids = set()
     if load:
         xml = Path(load).read_text()
@@ -163,6 +164,7 @@ def extend(
 ) -> None:
     """Download XML feed and extract all feed and episode tags and attributes."""
     db = Datastore(db_path)
+    db.clean_enclosure_urls()
     feeds_to_extend = db.get_feeds_to_extend()
     print(f"➡️Extending {len(feeds_to_extend)} feeds")
 
@@ -239,7 +241,6 @@ def transcripts(  # noqa: C901
     def _fetch_and_write_transcript(
         transcript: tuple[str, str, str, str, str],
     ) -> tuple[str, str] | None:
-
         title, url, mimetype, enclosure, feed_title = transcript
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")

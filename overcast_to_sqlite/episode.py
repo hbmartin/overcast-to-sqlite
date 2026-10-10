@@ -88,7 +88,7 @@ def extract_chapters(
 def extract_ep_attrs(
     xml_url: str,
     element: ElementTree.Element,
-) -> None | tuple[dict[str, Any], list[Chapter]]:
+) -> tuple[dict[str, Any], list[Chapter]] | None:
     ep_attrs = {FEED_XML_URL: xml_url}
     for ep_el in element:
         ep_attrs.update(_element_to_dict(ep_el))

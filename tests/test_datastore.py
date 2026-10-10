@@ -1,7 +1,84 @@
 import sqlite3
+from functools import partial
+from pathlib import Path
 
+import pytest
+from click.testing import CliRunner
+
+from overcast_to_sqlite import cli
 from overcast_to_sqlite.datastore import Datastore
 from overcast_to_sqlite.models import Episode, Feed, Playlist
+
+_EXTENDED_EPISODE_COLUMNS = (
+    "enclosureUrl",
+    "feedXmlUrl",
+    "title",
+    "description",
+    "link",
+    "itunes:image:href",
+    "pubDate",
+    "guid",
+)
+_EXTENDED_EPISODE_SELECT = ", ".join(
+    f'"{column}"' for column in _EXTENDED_EPISODE_COLUMNS
+)
+
+
+def _make_extended_feed() -> dict[str, str]:
+    return {
+        "xmlUrl": "https://example.com/feed-1.xml",
+        "title": "Tech Podcast",
+        "description": "About technology",
+        "link": "https://example.com/feed-1",
+        "itunes:image:href": "https://example.com/feed-1.png",
+    }
+
+
+def _make_extended_episode(enclosure_url: str, title: str) -> dict[str, str]:
+    return {
+        "enclosureUrl": enclosure_url,
+        "feedXmlUrl": "https://example.com/feed-1.xml",
+        "title": title,
+        "description": f"{title} description",
+        "link": f"https://example.com/episodes/{title}",
+        "itunes:image:href": f"https://example.com/episodes/{title}.png",
+        "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
+        "guid": f"{title}-guid",
+    }
+
+
+def _stored_extended_episodes(db_path: Path) -> list[tuple[str, ...]]:
+    with sqlite3.connect(db_path) as conn:
+        return conn.execute(
+            f"SELECT {_EXTENDED_EPISODE_SELECT} FROM episodes_extended "
+            "ORDER BY enclosureUrl",
+        ).fetchall()
+
+
+@pytest.fixture
+def legacy_database(tmp_path: Path) -> Path:
+    db_path = tmp_path / "legacy.db"
+    store = Datastore(str(db_path))
+    episode = _make_episode(overcast_id=1, starred=True)
+    store.save_feed_and_episodes(feed=_make_feed(), episodes=[episode])
+    clean = _make_extended_episode(episode.enclosureUrl, "clean")
+    variant = _make_extended_episode(f"{episode.enclosureUrl}?source=rss", "variant")
+    store.save_extended_feed_and_episodes(feed=_make_extended_feed(), episodes=[clean])
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "UPDATE episodes SET enclosureUrl = enclosureUrl || '?source=overcast'",
+        )
+        conn.execute("DELETE FROM episodes_extended")
+        conn.executemany(
+            f"INSERT INTO episodes_extended ({_EXTENDED_EPISODE_SELECT}) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                tuple(row[column] for column in _EXTENDED_EPISODE_COLUMNS)
+                for row in (variant, clean)
+            ],
+        )
+    return db_path
 
 
 def _make_feed(overcast_id: int = 1, title: str = "Test Feed") -> Feed:
@@ -316,52 +393,216 @@ def test_search_methods_return_empty_for_non_positive_limits(tmp_path) -> None:
     assert store.search_chapters("test", limit=0) == []
 
 
-def test_get_recently_played_deduplicates_clean_and_query_param_urls(tmp_path) -> None:
-    db_path = str(tmp_path / "test.db")
-    store = Datastore(db_path)
+@pytest.mark.parametrize("insertion_order", ["clean-first", "query-first"])
+@pytest.mark.parametrize(
+    "getter_name",
+    ["get_recently_played", "get_starred_episodes", "get_deleted_episodes"],
+)
+def test_episode_getters_preserve_clean_enclosure_metadata(
+    tmp_path: Path,
+    insertion_order: str,
+    getter_name: str,
+) -> None:
+    db_path = tmp_path / "test.db"
+    store = Datastore(str(db_path))
+    episode = _make_episode(
+        overcast_id=1,
+        played=getter_name != "get_deleted_episodes",
+        progress=0 if getter_name == "get_deleted_episodes" else 3600,
+        starred=True,
+    )
+    episode.userDeleted = getter_name == "get_deleted_episodes"
     store.save_feed_and_episodes(
         feed=_make_feed(),
-        episodes=[_make_episode(overcast_id=1)],
+        episodes=[episode],
     )
+    clean = _make_extended_episode(episode.enclosureUrl, "clean")
+    variant = _make_extended_episode(f"{episode.enclosureUrl}?source=rss", "variant")
+    variant["pubDate"] = "Fri, 03 Jan 2025 00:00:00 GMT"
     store.save_extended_feed_and_episodes(
-        feed={
-            "xmlUrl": "https://example.com/feed-1.xml",
-            "title": "Tech Podcast",
-            "description": "About technology",
-            "link": "https://example.com/feed-1",
-            "itunes:image:href": "https://example.com/feed-1.png",
-        },
-        episodes=[
-            {
-                "enclosureUrl": "https://cdn.example.com/1.mp3",
-                "feedXmlUrl": "https://example.com/feed-1.xml",
-                "title": "Episode 1",
-                "description": "Clean enclosure URL",
-                "link": "https://example.com/episodes/1",
-                "itunes:image:href": "https://example.com/episodes/1.png",
-                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
-            },
-            {
-                "enclosureUrl": "https://cdn.example.com/1.mp3?source=feed",
-                "feedXmlUrl": "https://example.com/feed-1.xml",
-                "title": "Episode 1 duplicate",
-                "description": "Duplicate enclosure URL with query params",
-                "link": "https://example.com/episodes/1-duplicate",
-                "itunes:image:href": "https://example.com/episodes/1-duplicate.png",
-                "pubDate": "Thu, 02 Jan 2025 00:00:00 GMT",
-            },
-        ],
+        feed=_make_extended_feed(),
+        episodes=(
+            [clean, variant] if insertion_order == "clean-first" else [variant, clean]
+        ),
     )
 
-    results = store.get_recently_played()
+    expected_row = tuple(clean[column] for column in _EXTENDED_EPISODE_COLUMNS)
+    assert _stored_extended_episodes(db_path) == [expected_row]
+    before_reads = store.db.conn.total_changes
 
-    with sqlite3.connect(db_path) as conn:
-        urls = conn.execute(
-            "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
-        ).fetchall()
+    def forbid_writes(action: int, *_args: object) -> int:
+        return (
+            sqlite3.SQLITE_DENY
+            if action
+            in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE)
+            else sqlite3.SQLITE_OK
+        )
+
+    store.db.conn.set_authorizer(forbid_writes)
+    try:
+        results = getattr(store, getter_name)()
+        assert getattr(store, getter_name)() == results
+    finally:
+        store.db.conn.set_authorizer(None)
 
     assert len(results) == 1
-    assert urls == [("https://cdn.example.com/1.mp3",)]
+    assert results[0]["description"] == clean["description"]
+    assert results[0]["link_"] == clean["link"]
+    assert results[0]["image_"] == clean["itunes:image:href"]
+    assert results[0]["pubDate"] == clean["pubDate"]
+    assert store.db.conn.total_changes == before_reads
+    assert _stored_extended_episodes(db_path) == [expected_row]
+
+
+def test_query_only_duplicates_keep_earliest_metadata_on_repeated_ingestion(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "test.db"
+    store = Datastore(str(db_path))
+    url = "https://cdn.example.com/1.mp3"
+    earliest = _make_extended_episode(f"{url}?source=first", "earliest")
+    later = _make_extended_episode(f"{url}?source=second", "later")
+    unrelated = _make_extended_episode("https://cdn.example.com/2.mp3", "unrelated")
+    store.save_extended_feed_and_episodes(
+        feed=_make_extended_feed(),
+        episodes=[earliest, unrelated, later],
+    )
+    expected = [
+        tuple(
+            {**earliest, "enclosureUrl": url}[column]
+            for column in _EXTENDED_EPISODE_COLUMNS
+        ),
+        tuple(unrelated[column] for column in _EXTENDED_EPISODE_COLUMNS),
+    ]
+    assert _stored_extended_episodes(db_path) == expected
+
+    store.save_extended_feed_and_episodes(
+        feed=_make_extended_feed(),
+        episodes=[{**earliest, "title": "replacement"}, later, unrelated],
+    )
+    assert _stored_extended_episodes(db_path) == expected
+    store.save_extended_feed_and_episodes(
+        feed=_make_extended_feed(),
+        episodes=[_make_extended_episode(url, "clean-arriving-later")],
+    )
+    store.clean_enclosure_urls()
+    store.clean_enclosure_urls()
+    assert _stored_extended_episodes(db_path) == expected
+
+
+def test_legacy_database_open_and_getters_leave_urls_unchanged(
+    legacy_database: Path,
+) -> None:
+    before = _stored_extended_episodes(legacy_database)
+    store = Datastore(str(legacy_database))
+    before_reads = store.db.conn.total_changes
+
+    assert store.get_recently_played() == []
+    assert store.get_starred_episodes() == []
+    assert store.get_deleted_episodes() == []
+
+    assert store.db.conn.total_changes == before_reads
+    assert _stored_extended_episodes(legacy_database) == before
+    with sqlite3.connect(legacy_database) as conn:
+        assert conn.execute("SELECT enclosureUrl FROM episodes").fetchone() == (
+            "https://cdn.example.com/1.mp3?source=overcast",
+        )
+
+
+@pytest.mark.parametrize("command", ["save", "extend"])
+def test_ingestion_commands_repair_legacy_urls_without_new_episodes(
+    legacy_database: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+) -> None:
+    monkeypatch.delenv("OVERCAST_LIMIT_DAYS", raising=False)
+
+    def forbid_fetch(**_kwargs: object) -> None:
+        pytest.fail("No feed downloads should be needed after legacy URL cleanup")
+
+    monkeypatch.setattr(cli, "fetch_xml_and_extract", forbid_fetch)
+    args = [command, str(legacy_database), "--no-archive"]
+    if command == "save":
+        opml_path = legacy_database.with_suffix(".opml")
+        opml_path.write_text('<opml version="2.0"><body/></opml>')
+        args.extend(["--load", str(opml_path)])
+    result = CliRunner().invoke(cli.cli, args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    if command == "extend":
+        assert "Extending 0 feeds" in result.output
+    clean = _make_extended_episode("https://cdn.example.com/1.mp3", "clean")
+    assert _stored_extended_episodes(legacy_database) == [
+        tuple(clean[column] for column in _EXTENDED_EPISODE_COLUMNS),
+    ]
+    store = Datastore(str(legacy_database))
+    assert store.get_recently_played()[0]["description"] == clean["description"]
+    assert store.get_starred_episodes()[0]["link_"] == clean["link"]
+    with sqlite3.connect(legacy_database) as conn:
+        assert conn.execute("SELECT enclosureUrl FROM episodes").fetchone() == (
+            clean["enclosureUrl"],
+        )
+
+
+@pytest.mark.parametrize("cleanup_path", ["existing", "new-batch"])
+def test_cleanup_rolls_back_deletion_and_url_updates_on_failure(
+    legacy_database: Path,
+    cleanup_path: str,
+) -> None:
+    store = Datastore(str(legacy_database))
+    store.db.execute(
+        "UPDATE episodes_extended SET enclosureUrl = enclosureUrl || '?source=second' "
+        "WHERE title = 'clean'",
+    )
+    before = _stored_extended_episodes(legacy_database)
+    store.db.execute(
+        "CREATE TRIGGER reject_url_update BEFORE UPDATE ON episodes_extended "
+        "BEGIN SELECT RAISE(ABORT, 'normalization failed'); END",
+    )
+
+    cleanup = (
+        store.clean_enclosure_urls
+        if cleanup_path == "existing"
+        else partial(
+            store.save_extended_feed_and_episodes,
+            feed=_make_extended_feed(),
+            episodes=[],
+        )
+    )
+    with pytest.raises(sqlite3.IntegrityError, match="normalization failed"):
+        cleanup()
+
+    assert not store.db.conn.in_transaction
+    assert _stored_extended_episodes(legacy_database) == before
+    with sqlite3.connect(legacy_database) as conn:
+        assert conn.execute("SELECT enclosureUrl FROM episodes").fetchone() == (
+            "https://cdn.example.com/1.mp3?source=overcast",
+        )
+    assert len(store.search_episodes("description")) == len(before)
+
+    store.db.execute("DROP TRIGGER reject_url_update")
+    store.clean_enclosure_urls()
+    assert len(_stored_extended_episodes(legacy_database)) == 1
+    assert len(store.search_episodes("variant description")) == 1
+    assert store.search_episodes("clean description") == []
+
+
+def test_cleanup_preserves_caller_transaction(legacy_database: Path) -> None:
+    before = _stored_extended_episodes(legacy_database)
+    store = Datastore(str(legacy_database))
+    store.db.conn.execute("BEGIN")
+    store.db.conn.execute("UPDATE feeds SET title = 'uncommitted title'")
+
+    store.clean_enclosure_urls()
+
+    assert store.db.conn.in_transaction
+    assert store.db.execute("SELECT title FROM feeds").fetchone() == (
+        "uncommitted title",
+    )
+    assert _stored_extended_episodes(legacy_database) == before
+    store.db.conn.rollback()
+    assert _stored_extended_episodes(legacy_database) == before
+    assert store.db.execute("SELECT title FROM feeds").fetchone() == ("Test Feed",)
 
 
 def test_get_recently_played_normalizes_query_param_extended_url(tmp_path) -> None:
@@ -392,19 +633,21 @@ def test_get_recently_played_normalizes_query_param_extended_url(tmp_path) -> No
         ],
     )
 
-    results = store.get_recently_played()
-
     with sqlite3.connect(db_path) as conn:
         urls = conn.execute(
             "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
         ).fetchall()
+
+    results = store.get_recently_played()
 
     assert len(results) == 1
     assert results[0]["episode_title"] == "Episode 1"
     assert urls == [("https://cdn.example.com/1.mp3",)]
 
 
-def test_get_recently_played_falls_back_to_episode_url_for_missing_links(tmp_path) -> None:
+def test_get_recently_played_falls_back_to_episode_url_for_missing_links(
+    tmp_path,
+) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
     store.save_feed_and_episodes(
@@ -467,10 +710,10 @@ def test_clean_enclosure_urls_skips_deduplication_without_query_params(
         fail_deduplicate,
     )
 
-    store._clean_enclosure_urls()  # noqa: SLF001
+    store.clean_enclosure_urls()
 
 
-def test_ensure_episode_download_column(tmp_path):
+def test_ensure_episode_download_column(tmp_path: Path) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
 
@@ -482,12 +725,12 @@ def test_ensure_episode_download_column(tmp_path):
     assert "enclosureDownloadPath" in columns
 
 
-def test_audio_to_download_filters_recorded_and_null_enclosures(tmp_path):
+def test_audio_to_download_filters_recorded_and_null_enclosures(tmp_path: Path) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
     store.save_feed_and_episodes(
-        _make_feed(),
-        [_make_episode(overcast_id=i) for i in range(1, 4)],
+        feed=_make_feed(),
+        episodes=[_make_episode(overcast_id=i) for i in range(1, 4)],
     )
     store.ensure_episode_download_column()
     store.update_audio_download_path(overcast_id=2, audio_path="/audio/2.mp3")
@@ -499,12 +742,12 @@ def test_audio_to_download_filters_recorded_and_null_enclosures(tmp_path):
     assert rows == [(1, "Episode 1", "https://cdn.example.com/1.mp3", "Test Feed")]
 
 
-def test_audio_to_download_starred_only(tmp_path):
+def test_audio_to_download_starred_only(tmp_path: Path) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
     store.save_feed_and_episodes(
-        _make_feed(),
-        [
+        feed=_make_feed(),
+        episodes=[
             _make_episode(overcast_id=1),
             _make_episode(overcast_id=2, starred=True),
         ],
@@ -516,10 +759,13 @@ def test_audio_to_download_starred_only(tmp_path):
     assert rows == [(2, "Episode 2", "https://cdn.example.com/2.mp3", "Test Feed")]
 
 
-def test_update_audio_download_path(tmp_path):
+def test_update_audio_download_path(tmp_path: Path) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
-    store.save_feed_and_episodes(_make_feed(), [_make_episode(overcast_id=1)])
+    store.save_feed_and_episodes(
+        feed=_make_feed(),
+        episodes=[_make_episode(overcast_id=1)],
+    )
     store.ensure_episode_download_column()
 
     store.update_audio_download_path(overcast_id=1, audio_path="/audio/1.mp3")
@@ -532,7 +778,9 @@ def test_update_audio_download_path(tmp_path):
     assert list(store.audio_to_download(starred_only=False)) == []
 
 
-def test_save_feed_and_episodes_preserves_existing_html_url_when_missing(tmp_path) -> None:
+def test_save_feed_and_episodes_preserves_existing_html_url_when_missing(
+    tmp_path,
+) -> None:
     db_path = str(tmp_path / "test.db")
     store = Datastore(db_path)
     store.save_feed_and_episodes(feed=_make_feed(), episodes=[])

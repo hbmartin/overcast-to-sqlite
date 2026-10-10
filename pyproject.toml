@@ -74,7 +74,7 @@ indent-width = 4
 target-version = "py313"
 
 lint.select = ["ALL"]
-lint.ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213", "ICN001", "S608", "S113", "S311", "S314", "T201"]
+lint.ignore = ["CPY001", "D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213", "ICN001", "S608", "S113", "S311", "S314", "T201"]
 
 [tool.ruff.lint.per-file-ignores]
 "overcast_to_sqlite/cli.py" = ["FBT001"]
