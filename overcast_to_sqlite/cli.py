@@ -239,7 +239,6 @@ def transcripts(  # noqa: C901
     def _fetch_and_write_transcript(
         transcript: tuple[str, str, str, str, str],
     ) -> tuple[str, str] | None:
-
         title, url, mimetype, enclosure, feed_title = transcript
         if verbose:
             print(f"⬇️Downloading {title} @ {url}")

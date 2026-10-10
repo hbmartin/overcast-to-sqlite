@@ -269,6 +269,7 @@ class Datastore:
             [e.to_dict() for e in episodes],
             pk=OVERCAST_ID,
         )
+        self._normalize_enclosure_urls(EPISODES)
 
     def save_extended_feed_and_episodes(
         self,
@@ -283,6 +284,7 @@ class Datastore:
             ignore=True,
             alter=True,
         )
+        self._clean_extended_enclosure_urls()
 
     def mark_feed_removed_if_missing(
         self,
@@ -492,6 +494,10 @@ class Datastore:
         """Clean and normalize enclosure URLs by removing query parameters."""
         self._normalize_enclosure_urls(EPISODES)
 
+        self._clean_extended_enclosure_urls()
+
+    def _clean_extended_enclosure_urls(self) -> None:
+        """Deduplicate and normalize extended episode enclosure URLs."""
         if not self._has_enclosure_url_query_parameters(EPISODES_EXTENDED):
             return
 
@@ -525,7 +531,7 @@ class Datastore:
         self._conn().commit()
 
     def _deduplicate_extended_enclosure_urls(self) -> None:
-        """Delete duplicate extended episodes after enclosure URL normalization."""
+        """Delete duplicates using normalized base URLs computed by this method."""
         enclosure_base_url = _base_enclosure_url_sql(ENCLOSURE_URL)
         self.db.execute(
             f"""
@@ -600,8 +606,6 @@ class Datastore:
 
     def get_recently_played(self) -> list[dict[str, object]]:
         """Retrieve a list of recently played episodes with metadata."""
-        self._clean_enclosure_urls()
-
         base_fields = self._get_base_fields()
         fields = [
             *base_fields,
@@ -620,8 +624,6 @@ class Datastore:
 
     def get_starred_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of starred episodes with metadata."""
-        self._clean_enclosure_urls()
-
         base_fields = self._get_base_fields()
         fields = [
             *base_fields,
@@ -640,8 +642,6 @@ class Datastore:
 
     def get_deleted_episodes(self) -> list[dict[str, object]]:
         """Retrieve a list of deleted episodes with metadata."""
-        self._clean_enclosure_urls()
-
         base_fields = self._get_base_fields()
         fields = [
             *base_fields,

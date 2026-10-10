@@ -353,12 +353,12 @@ def test_get_recently_played_deduplicates_clean_and_query_param_urls(tmp_path) -
         ],
     )
 
-    results = store.get_recently_played()
-
     with sqlite3.connect(db_path) as conn:
         urls = conn.execute(
             "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
         ).fetchall()
+
+    results = store.get_recently_played()
 
     assert len(results) == 1
     assert urls == [("https://cdn.example.com/1.mp3",)]
@@ -392,12 +392,12 @@ def test_get_recently_played_normalizes_query_param_extended_url(tmp_path) -> No
         ],
     )
 
-    results = store.get_recently_played()
-
     with sqlite3.connect(db_path) as conn:
         urls = conn.execute(
             "SELECT enclosureUrl FROM episodes_extended ORDER BY rowid",
         ).fetchall()
+
+    results = store.get_recently_played()
 
     assert len(results) == 1
     assert results[0]["episode_title"] == "Episode 1"
