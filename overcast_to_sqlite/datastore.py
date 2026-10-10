@@ -4,12 +4,13 @@ from __future__ import annotations
 import datetime
 import os
 import sqlite3
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, cast
 
 from sqlite_utils import Database
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Generator, Iterable
 
     from sqlite_utils.db import Table
 
@@ -269,7 +270,8 @@ class Datastore:
             [e.to_dict() for e in episodes],
             pk=OVERCAST_ID,
         )
-        self._normalize_enclosure_urls(EPISODES)
+        with self._enclosure_url_savepoint():
+            self._normalize_enclosure_urls(EPISODES)
 
     def save_extended_feed_and_episodes(
         self,
@@ -490,19 +492,33 @@ class Datastore:
             f"AND ({CHAPTERS}.{SOURCE} IS NULL OR {CHAPTERS}.{SOURCE} != 'psc');",
         )
 
-    def _clean_enclosure_urls(self) -> None:
-        """Clean and normalize enclosure URLs by removing query parameters."""
-        self._normalize_enclosure_urls(EPISODES)
+    @contextmanager
+    def _enclosure_url_savepoint(self) -> Generator[None]:
+        """Roll back URL cleanup failures without committing caller transactions."""
+        conn = self._conn()
+        conn.execute("SAVEPOINT enclosure_url_cleanup")
+        try:
+            yield
+        except (BaseException,):  # noqa: B013
+            conn.execute("ROLLBACK TO enclosure_url_cleanup")
+            raise
+        finally:
+            conn.execute("RELEASE enclosure_url_cleanup")
 
-        self._clean_extended_enclosure_urls()
+    def clean_enclosure_urls(self) -> None:
+        """Normalize existing enclosure URLs before ingesting new episodes."""
+        with self._enclosure_url_savepoint():
+            self._normalize_enclosure_urls(EPISODES)
+            self._clean_extended_enclosure_urls()
 
     def _clean_extended_enclosure_urls(self) -> None:
         """Deduplicate and normalize extended episode enclosure URLs."""
         if not self._has_enclosure_url_query_parameters(EPISODES_EXTENDED):
             return
 
-        self._deduplicate_extended_enclosure_urls()
-        self._normalize_enclosure_urls(EPISODES_EXTENDED)
+        with self._enclosure_url_savepoint():
+            self._deduplicate_extended_enclosure_urls()
+            self._normalize_enclosure_urls(EPISODES_EXTENDED)
 
     def _has_enclosure_url_query_parameters(self, table_name: str) -> bool:
         """Return whether a table has enclosure URLs with query parameters."""
@@ -528,19 +544,21 @@ class Datastore:
             f"substr({ENCLOSURE_URL}, 1, instr({ENCLOSURE_URL}, '?') - 1) "
             f"WHERE instr({ENCLOSURE_URL}, '?') > 0",
         )
-        self._conn().commit()
 
     def _deduplicate_extended_enclosure_urls(self) -> None:
-        """Delete duplicates using normalized base URLs computed by this method."""
+        """Compute base URLs and deduplicate, preferring existing clean URL rows."""
         enclosure_base_url = _base_enclosure_url_sql(ENCLOSURE_URL)
         self.db.execute(
             f"""
             WITH normalized AS (
-                SELECT rowid, {enclosure_base_url} AS base_url
+                SELECT rowid, {ENCLOSURE_URL}, {enclosure_base_url} AS base_url
                 FROM {EPISODES_EXTENDED}
             ),
             canonical AS (
-                SELECT MIN(rowid) AS keep_rowid
+                SELECT COALESCE(
+                    MIN(CASE WHEN {ENCLOSURE_URL} = base_url THEN rowid END),
+                    MIN(rowid)
+                ) AS keep_rowid
                 FROM normalized
                 GROUP BY base_url
             )
@@ -548,7 +566,6 @@ class Datastore:
             WHERE rowid NOT IN (SELECT keep_rowid FROM canonical)
             """,
         )
-        self._conn().commit()
 
     def _get_base_fields(self) -> list[str]:
         """Get the base field list for episode queries."""

@@ -157,6 +157,8 @@ Note: audio files are large (often 50–200 MB per episode), so this command is 
 
 The `html` command generates static HTML pages for recently played, starred, and deleted episodes.
 
+For databases created by older versions, run `save` or `extend` once before generating HTML to normalize existing enclosure URLs. Both commands remove query parameters and deduplicate extended episodes, preserving the complete metadata of an existing clean URL row when available. If every URL in a duplicate group has query parameters, the earliest stored row is retained. This cleanup runs even when `extend` has no feeds to download; opening the database and retrieving episodes do not perform URL cleanup.
+
     $ overcast-to-sqlite html
 
 This produces three files: `overcast-played.html`, `overcast-starred.html`, and `overcast-deleted.html` in the same directory as the database file.
