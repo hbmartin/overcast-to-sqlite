@@ -30,6 +30,8 @@ If you simply want a page showing your recently listened episodes, try out the s
 
 ## How to install
 
+Requires Python 3.13 or newer.
+
 Run it once without installing:
 
     $ uvx overcast-to-sqlite
