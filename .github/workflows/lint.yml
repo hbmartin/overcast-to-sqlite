@@ -29,6 +29,16 @@ jobs:
         run: |
           uv sync --dev --locked --python ${{ matrix.python-version }}
 
+      - name: Run packaging metadata check (experimental)
+        id: pyroma
+        # Keep this new checker advisory while evaluating its stability.
+        continue-on-error: true
+        run: uv run --locked pyroma --min 10 .
+
+      - name: Report packaging metadata check failure
+        if: steps.pyroma.outcome == 'failure'
+        run: echo "::warning::pyroma621 6.1.0 failed. Review the packaging metadata check log for findings or checker errors. This experimental check is advisory."
+
       - name: Run Ruff check
         run: |
           uv run ruff check overcast_to_sqlite
