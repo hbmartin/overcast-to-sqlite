@@ -315,12 +315,12 @@ The compatibility concerns were reproduced without changing application files: a
 Run the same check used in CI:
 
 ```bash
-uv run --locked pyroma --min 10 .
+uv run --locked --no-build pyroma --min 10 .
 ```
 
-The target is 10/10. Exit code `0` means the target was met, `2` means the rating is below the target, and `3` means an error prevented the check. For structured findings, use `uv run --locked pyroma --format json --min 10 .`. Version 6.1.0 also reports advisory findings, which do not affect the rating unless `--strict` is used.
+The target is 10/10. Exit code `0` means the target was met, `2` means the rating is below the target, and `3` means an error prevented the check. For structured findings, use `uv run --locked --no-build pyroma --format json --min 10 .`. Version 6.1.0 also reports advisory findings, which do not affect the rating unless `--strict` is used.
 
-CI runs this experimental check on Python 3.13 and 3.14. Failures produce a workflow warning and remain advisory while the checker is evaluated. Review the check's log for metadata findings or checker errors.
+CI runs this experimental check on Python 3.13 and 3.14 after installing the locked development dependencies. The checker invocation disables source distribution builds by uv; run `uv sync --dev --locked` first when setting up a local environment. Failures produce a workflow warning and remain advisory while the checker is evaluated. Review the check's log for metadata findings or checker errors.
 
 Version 6.1.0 fixes the two issues observed in 6.0.0: malformed TOML now returns exit code `3` with a structured JSON error, and JSON reports include the checker version in `_meta.pyroma`. Treat any nonzero exit code as a failed check.
 

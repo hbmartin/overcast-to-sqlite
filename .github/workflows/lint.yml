@@ -33,7 +33,8 @@ jobs:
         id: pyroma
         # Keep this new checker advisory while evaluating its stability.
         continue-on-error: true
-        run: uv run --locked pyroma --min 10 .
+        # Dependencies are already installed by the locked sync above.
+        run: uv run --locked --no-build pyroma --min 10 .
 
       - name: Report packaging metadata check failure
         if: steps.pyroma.outcome == 'failure'
