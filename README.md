@@ -308,6 +308,22 @@ The latest run also disables `GAC008`, makes all three model dataclasses keyword
 
 The compatibility concerns were reproduced without changing application files: applying the `GAC001` advice to `feed.py` caused `NameError: name 'Path' is not defined` on Python 3.13, and applying `GAC008` to the HTML parser override caused a `TypeError` during parsing. Keep the source and uv pins and advisory status until upgrades have been evaluated.
 
+### Packaging metadata checks
+
+[pyroma621](https://pypi.org/project/pyroma621/) checks the project's packaging metadata and build configuration. It is pinned to version 6.1.0 in the development dependencies while its stability is evaluated; the installed command is `pyroma`.
+
+Run the same check used in CI:
+
+```bash
+uv run --locked pyroma --min 10 .
+```
+
+The target is 10/10. Exit code `0` means the target was met, `2` means the rating is below the target, and `3` means an error prevented the check. For structured findings, use `uv run --locked pyroma --format json --min 10 .`. Version 6.1.0 also reports advisory findings, which do not affect the rating unless `--strict` is used.
+
+CI runs this experimental check on Python 3.13 and 3.14. Failures produce a workflow warning and remain advisory while the checker is evaluated. Review the check's log for metadata findings or checker errors.
+
+Version 6.1.0 fixes the two issues observed in 6.0.0: malformed TOML now returns exit code `3` with a structured JSON error, and JSON reports include the checker version in `_meta.pyroma`. Treat any nonzero exit code as a failed check.
+
 ## Authors
 
 * [Harold Martin](https://www.linkedin.com/in/harold-martin-98526971/) - harold.martin at gmail

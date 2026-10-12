@@ -49,6 +49,7 @@ dev = [
     "black>=25.1.0",
     "lizard>=1.21.2",
     "pyrefly>=0.56.0",
+    "pyroma621==6.1.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "requests-mock>=1.12.1",
