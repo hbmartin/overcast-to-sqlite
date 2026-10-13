@@ -80,6 +80,19 @@ def test_detect_pdf_from_bytes():
     assert exporter.detect_format(b"%PDF-1.7\n", ".octet-stream")[0] == "pdf"
 
 
+def test_subtitle_blocks_with_whitespace_and_line_endings():
+    blank_line = " " * 16384
+    transcript = (
+        "WEBVTT\r\n\r\n"
+        "first-cue\r\n00:01.000 --> 00:02.000\r\nHello\r\n"
+        f"{blank_line}\r\n"
+        "second-cue\r\n00:02.000 --> 00:03.000\r\nGoodbye"
+    )
+    assert exporter.subtitle_text(transcript) == "Hello\nGoodbye"
+    with pytest.raises(ValueError, match="No subtitle cues found"):
+        exporter.subtitle_text("WEBVTT\n\n\t\n")
+
+
 def test_generation_preserves_sources_failures_and_metadata(tmp_path):
     source = tmp_path / "transcripts"
     podcast = source / "Show"

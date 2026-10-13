@@ -186,10 +186,11 @@ original transcript formats remain downloadable. Transcript copyrights and
 licenses remain with their respective owners; the project's Apache-2.0 license
 covers the generator code.
 
-Generator tests use the script's optional libraries:
+Generator tests use the optional `transcript-dataset` dependency group. CI uses
+the locked versions and disables dependency source builds:
 
 ```sh
-uv run --with beautifulsoup4 --with pyarrow --with pypdf --with charset-normalizer \
+uv run --locked --group transcript-dataset \
   pytest tests/test_transcript_dataset.py
 ```
 

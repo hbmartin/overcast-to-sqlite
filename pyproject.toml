@@ -45,6 +45,12 @@ Repository = "https://github.com/hbmartin/overcast-to-sqlite"
 Issues = "https://github.com/hbmartin/overcast-to-sqlite/issues"
 
 [dependency-groups]
+transcript-dataset = [
+    "beautifulsoup4>=4.13",
+    "charset-normalizer>=3.4",
+    "pyarrow>=19",
+    "pypdf>=5",
+]
 dev = [
     "black>=25.1.0",
     "lizard>=1.21.2",

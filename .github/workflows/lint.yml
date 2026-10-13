@@ -56,7 +56,7 @@ jobs:
 
       - name: Run transcript dataset generator tests
         run: |
-          uv run --with beautifulsoup4 --with pyarrow --with pypdf --with charset-normalizer \
+          uv run --locked --no-build --group transcript-dataset \
             pytest tests/test_transcript_dataset.py
 
       - name: Upload coverage to Codecov

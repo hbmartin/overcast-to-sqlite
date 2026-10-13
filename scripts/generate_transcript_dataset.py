@@ -66,6 +66,8 @@ _SCHEMA = pa.schema(
 )
 _BATCH_SIZE = 100
 _MIN_HTML_TRANSCRIPT_LENGTH = 200
+# This fixed XML namespace identifies Podlove elements; no network request is made.
+_PODLOVE_NAMESPACE = "http://podlove.org/simple-transcripts"  # NOSONAR
 
 
 def normalize_text(text: str) -> str:
@@ -93,11 +95,7 @@ def text_format(text: str, suffix: str) -> str:
     if suffix == ".json" or (start.startswith("{") and '"segments"' in start[:2000]):
         return "json"
     if start.startswith("<"):
-        return (
-            "podlove"
-            if "http://podlove.org/simple-transcripts" in text[:2000]
-            else "html"
-        )
+        return "podlove" if _PODLOVE_NAMESPACE in text[:2000] else "html"
     if "\x00" in text:
         msg = "Unsupported binary content"
         raise ValueError(msg)
@@ -111,10 +109,21 @@ def detect_format(content: bytes, suffix: str) -> tuple[str, str]:
     return text_format(text, suffix.lower()), text
 
 
+def subtitle_blocks(text: str) -> Iterator[list[str]]:
+    block: list[str] = []
+    for line in text.splitlines():
+        if line.strip():
+            block.append(line)
+        elif block:
+            yield block
+            block = []
+    if block:
+        yield block
+
+
 def subtitle_text(text: str) -> str:
     cues: list[str] = []
-    for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
-        lines = block.splitlines()
+    for lines in subtitle_blocks(text):
         if (
             timing_index := next(
                 (index for index, line in enumerate(lines) if _TIMING.match(line)),
@@ -294,7 +303,6 @@ def transcript_record(path: Path, source: Path, metadata: dict[str, Record]) -> 
         OSError,
         ValueError,
         TypeError,
-        UnicodeError,
         ElementTree.ParseError,
         PyPdfError,
     ) as error:
