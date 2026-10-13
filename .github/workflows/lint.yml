@@ -54,6 +54,11 @@ jobs:
         run: |
           uv run pytest tests/ --cov=overcast_to_sqlite --cov-report=xml
 
+      - name: Run transcript dataset generator tests
+        run: |
+          uv run --with beautifulsoup4 --with pyarrow --with pypdf --with charset-normalizer \
+            pytest tests/test_transcript_dataset.py
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
