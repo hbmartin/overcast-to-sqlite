@@ -18,6 +18,7 @@ If you simply want a page showing your recently listened episodes, try out the s
 - [Fetching and saving updates](#fetching-and-saving-updates)
 - [Extending and saving full feeds](#extending-and-saving-full-feeds)
 - [Downloading transcripts](#downloading-transcripts)
+- [Publishing a transcript dataset](#publishing-a-transcript-dataset)
 - [Downloading chapters](#downloading-chapters)
 - [Downloading audio files](#downloading-audio-files)
 - [Generating HTML pages](#generating-html-pages)
@@ -126,6 +127,72 @@ A different path can be set with the `-p`/`--path` flag.
 It also supports the `-v` flag to print additional information.
 
 There is also a `-s` flag to only download transcripts for starred episodes.
+
+## Publishing a transcript dataset
+
+A public snapshot is available at
+[hbmartin/podcast-transcript-archive](https://huggingface.co/datasets/hbmartin/podcast-transcript-archive).
+
+Generate a Hugging Face dataset locally with the standalone script. `uv` installs
+its declared Parquet, HTML, encoding-detection, and PDF dependencies automatically:
+
+```sh
+uv run scripts/generate_transcript_dataset.py archive/transcripts \
+  --database overcast.db --output archive/huggingface/podcast-transcripts \
+  --repo-id USERNAME/podcast-transcripts
+```
+
+The output contains all original files bundled in `raw-transcripts.tar.gz`,
+one row per archived file in
+`data/train.parquet`, a dataset card (`README.md`), an extraction report, and a copy
+of the generation script. Source URLs, original titles, feed URLs, episode page
+URLs, and publication dates are read from SQLite. The database is opened read-only.
+Generated `.gitattributes` uses LFS for the bundle and Parquet so large archives
+can use Hugging Face's Xet uploader efficiently.
+Use `--no-database` to derive titles from directory/file names instead. When
+`--database` is omitted, a local `overcast.db` is used if it exists.
+
+Content detection handles TXT, SRT, WebVTT, transcript JSON, Podlove XML, HTML, and
+PDF, including mislabelled extensions. Failed extractions remain in Parquet with
+null text, `extraction_status=error`, and an error description; their originals are
+preserved. HTML extraction can include episode notes or other page content, and
+PDF extraction uses embedded text without OCR. Byte-identical files are retained
+as separate rows; use `sha256` to identify them. macOS metadata and cache files are
+excluded, while transcript titles that start with a dot are retained. Regeneration
+overwrites the generated bundle and removes the output's old `raw/` directory.
+The source archive is preserved. Bundling avoids thousands of individual file
+commits when publishing. Extract the bundle with `tar -xzf raw-transcripts.tar.gz`;
+each Parquet row's `raw_path` locates its original inside the extracted `raw/`
+directory.
+
+To publish, replace `USERNAME` with your Hugging Face username:
+
+```sh
+uvx --from huggingface_hub hf auth login
+uvx --from huggingface_hub hf repos create \
+  USERNAME/podcast-transcripts --repo-type dataset
+uvx --from huggingface_hub hf upload \
+  USERNAME/podcast-transcripts archive/huggingface/podcast-transcripts/.gitattributes \
+  .gitattributes --repo-type dataset
+uvx --from huggingface_hub hf upload \
+  USERNAME/podcast-transcripts archive/huggingface/podcast-transcripts . \
+  --repo-type dataset
+```
+
+The repository is public by default; add `--private` when creating it to keep it
+private. Re-run generation and upload to publish an updated snapshot. The dataset
+card explicitly configures the viewer to load only the Parquet file, while the
+original transcript formats remain downloadable. Transcript copyrights and
+licenses remain with their respective owners; the project's Apache-2.0 license
+covers the generator code.
+
+Generator tests use the optional `transcript-dataset` dependency group. CI uses
+the locked versions and disables dependency source builds:
+
+```sh
+uv run --locked --group transcript-dataset \
+  pytest tests/test_transcript_dataset.py
+```
 
 ## Downloading chapters
 
