@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -420,7 +420,7 @@ dev = [
     { name = "black", specifier = ">=25.1.0" },
     { name = "lizard", specifier = ">=1.21.2" },
     { name = "pyrefly", specifier = ">=0.56.0" },
-    { name = "pyroma621", specifier = "==6.1.0" },
+    { name = "pyroma621", specifier = "==6.2.0" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "requests-mock", specifier = ">=1.12.1" },
@@ -584,7 +584,7 @@ wheels = [
 
 [[package]]
 name = "pyroma621"
-version = "6.1.0"
+version = "6.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
@@ -596,9 +596,9 @@ dependencies = [
     { name = "trove-classifiers" },
     { name = "validate-pyproject" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/44/e10e88e24118f74013bc879a45317b6510ff137bd5d7acda30aa1c4163fa/pyroma621-6.1.0.tar.gz", hash = "sha256:6aa360973283d2150a17d4a0e0eef5914cf6fd5e3cf8ba68960deb687b83cac2", size = 335076, upload-time = "2026-10-12T17:42:35.448Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/e3/a49a2b123fd2c52f7fd0404118af8159092038d163f68a9d948487a3d3cd/pyroma621-6.2.0.tar.gz", hash = "sha256:15df45d0f1930c5b9a41ab34c34bbb00c481877b37a6d77a83645ecfd68c23e1", size = 406693, upload-time = "2026-10-14T01:22:31.498Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/2d/79637662fdd091e96ca82afcf70274089f5f6a13c7a2ef78721023f1ef1a/pyroma621-6.1.0-py3-none-any.whl", hash = "sha256:f6e2ca0c83bb2abb70d0a267f2f9f027e98fbeb79d3ddb06ccf8bc12c0c4c35a", size = 126156, upload-time = "2026-10-12T17:42:33.915Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/70/305dff6b5338285ad45af19c1f0978d8b75b807e784f9f9e0554c17a3ba9/pyroma621-6.2.0-py3-none-any.whl", hash = "sha256:859ad51ad82b3651c92b17f96d93db988240296ed4f59cf5be9911d591f10ad7", size = 130441, upload-time = "2026-10-14T01:22:29.95Z" },
 ]
 
 [[package]]
